@@ -229,7 +229,7 @@ const App = () => {
                     <div className="flex items-center gap-4 ml-auto">
                       {isAdminOrSuper && (
                         <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-full text-[10px] font-black uppercase">
-                          <ShieldCheck size={14}/> {isSuperAdmin ? 'Full Access' : 'View Access'}
+                          <ShieldCheck size={14}/> {isSuperAdmin ? 'SUPER ADMIN' : 'View Access'}
                         </div>
                       )}
                       <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-800 bg-slate-900/50">
