@@ -3,39 +3,245 @@ import {
   Banknote, Trash2, DollarSign, CheckCircle, Calendar,
   ChevronDown, UserCheck, X, Award, Building2, Users,
   BarChart3, ClipboardList, Plus, TrendingUp, Hash,
-  Clock, Layers, ChevronRight
+  Clock, Layers, ChevronRight, Calculator, AlertTriangle,
+  ArrowDownCircle, Wallet, PieChart
 } from 'lucide-react';
 import { api } from '../utils/api';
-
 const MONTH_LABELS = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
-const MONTH_SHORT  = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
+const MONTH_SHORT = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
+
+// ═══════════════════════════════════════════════════════════
+// UMUMIY HISOB MODALI — yangi komponent
+// ═══════════════════════════════════════════════════════════
+const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
+  const [sortBy, setSortBy] = useState('remaining'); // 'remaining' | 'earned' | 'taken'
+
+  const sorted = useMemo(() => {
+    return [...employeeStats].sort((a, b) => {
+      if (sortBy === 'remaining') return b.remaining - a.remaining;
+      if (sortBy === 'earned') return b.totalEarned - a.totalEarned;
+      if (sortBy === 'taken') return b.totalTaken - a.totalTaken;
+      return 0;
+    });
+  }, [employeeStats, sortBy]);
+
+  const grandTotalEarned = employeeStats.reduce((s, e) => s + e.totalEarned, 0);
+  const grandTotalTaken = employeeStats.reduce((s, e) => s + e.totalTaken, 0);
+  const grandTotalFines = employeeStats.reduce((s, e) => s + e.totalFines, 0);
+  const grandRemaining = employeeStats.reduce((s, e) => s + e.remaining, 0);
+  const positiveCount = employeeStats.filter(e => e.remaining > 0).length;
+  const negativeCount = employeeStats.filter(e => e.remaining < 0).length;
+  const maxRemaining = Math.max(...employeeStats.map(e => Math.abs(e.remaining)), 1);
+
+  return (
+    <div
+      className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/90"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-slate-900 border border-slate-700 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg max-h-[95vh] overflow-y-auto shadow-2xl">
+        {/* STICKY HEADER */}
+        <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 pt-5 pb-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 shrink-0 bg-violet-500/10 border border-violet-500/30 rounded-2xl flex items-center justify-center">
+                <Calculator className="text-violet-400" size={22}/>
+              </div>
+              <div>
+                <h3 className="text-white font-black italic uppercase text-base leading-tight">Umumiy Hisob</h3>
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-wider">Barcha xodimlar qoldiqlari</p>
+              </div>
+            </div>
+            <button onClick={onClose}
+              className="w-9 h-9 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-colors">
+              <X className="text-slate-400" size={16}/>
+            </button>
+          </div>
+
+          {/* GRAND SUMMARY CARDS */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-gradient-to-br from-emerald-500/15 to-slate-950 border border-emerald-500/25 rounded-2xl p-3 text-center">
+              <p className="text-[7px] text-emerald-400 font-black uppercase tracking-widest mb-1">Jami Hisoblangan</p>
+              <p className="text-emerald-400 font-black text-lg leading-tight">{grandTotalEarned.toLocaleString()}</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">UZS</p>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-500/15 to-slate-950 border border-yellow-500/25 rounded-2xl p-3 text-center">
+              <p className="text-[7px] text-yellow-500 font-black uppercase tracking-widest mb-1">Jami Berilgan</p>
+              <p className="text-yellow-500 font-black text-lg leading-tight">{grandTotalTaken.toLocaleString()}</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">UZS</p>
+            </div>
+            {grandTotalFines > 0 && (
+              <div className="bg-gradient-to-br from-rose-500/15 to-slate-950 border border-rose-500/25 rounded-2xl p-3 text-center">
+                <p className="text-[7px] text-rose-400 font-black uppercase tracking-widest mb-1">Jami Jarimalar</p>
+                <p className="text-rose-400 font-black text-lg leading-tight">−{grandTotalFines.toLocaleString()}</p>
+                <p className="text-[9px] text-slate-600 mt-0.5">UZS</p>
+              </div>
+            )}
+            <div className={`bg-gradient-to-br border rounded-2xl p-3 text-center ${grandRemaining >= 0 ? 'from-violet-500/15 to-slate-950 border-violet-500/25' : 'from-rose-500/15 to-slate-950 border-rose-500/25'}`}>
+              <p className={`text-[7px] font-black uppercase tracking-widest mb-1 ${grandRemaining >= 0 ? 'text-violet-400' : 'text-rose-400'}`}>Umumiy Qoldiq</p>
+              <p className={`font-black text-lg leading-tight ${grandRemaining >= 0 ? 'text-violet-400' : 'text-rose-400'}`}>{grandRemaining.toLocaleString()}</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">UZS</p>
+            </div>
+          </div>
+
+          {/* STATISTIKA CHIPS */}
+          <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full"/>
+              <span className="text-[8px] text-emerald-400 font-black uppercase">{positiveCount} ta — berilishi kerak</span>
+            </div>
+            {negativeCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl">
+                <div className="w-2 h-2 bg-rose-500 rounded-full"/>
+                <span className="text-[8px] text-rose-400 font-black uppercase">{negativeCount} ta — ortiqcha berilgan</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl">
+              <Users size={10} className="text-slate-400"/>
+              <span className="text-[8px] text-slate-400 font-black uppercase">{employeeStats.length} ta xodim</span>
+            </div>
+          </div>
+
+          {/* SORT BUTTONS */}
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
+            {[
+              { key: 'remaining', label: 'Qoldiq' },
+              { key: 'earned', label: 'Hisoblangan' },
+              { key: 'taken', label: 'Berilgan' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setSortBy(key)}
+                className={`flex-1 py-2 rounded-lg font-black text-[8px] uppercase transition-all ${sortBy === key ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-900'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* XODIMLAR RO'YXATI */}
+        <div className="p-4 space-y-2">
+          {sorted.map((stats, idx) => {
+            const { emp, totalTaken, totalEarned, totalFines, remaining, workedDays } = stats;
+            const isNegative = remaining < 0;
+            const barPct = maxRemaining > 0 ? Math.min(Math.round((Math.abs(remaining) / maxRemaining) * 100), 100) : 0;
+            const earnedPct = totalEarned > 0 ? Math.min(Math.round((totalTaken / totalEarned) * 100), 100) : 0;
+
+            return (
+              <button
+                key={stats.empId}
+                onClick={() => { onSelectEmp(stats); onClose(); }}
+                className="w-full bg-slate-950 border border-slate-800 hover:border-violet-500/40 hover:bg-slate-900/40 active:scale-[0.99] rounded-2xl p-4 text-left transition-all group"
+              >
+                {/* TOP ROW */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-black text-base border transition-all ${
+                    isNegative
+                      ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                      : remaining === 0
+                        ? 'bg-slate-800 border-slate-700 text-slate-400'
+                        : 'bg-violet-500/10 border-violet-500/20 text-violet-400'
+                  }`}>
+                    {emp.name[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-black italic uppercase text-sm truncate">{emp.name}</p>
+                      {isNegative && <AlertTriangle size={11} className="text-rose-400 shrink-0"/>}
+                    </div>
+                    <p className="text-slate-500 text-[9px] font-bold uppercase">{emp.position} • {workedDays} kun</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`font-black text-base italic leading-tight ${isNegative ? 'text-rose-400' : remaining === 0 ? 'text-slate-500' : 'text-violet-400'}`}>
+                      {isNegative ? '−' : ''}{Math.abs(remaining).toLocaleString()}
+                    </p>
+                    <p className="text-[8px] text-slate-600">UZS qoldiq</p>
+                  </div>
+                </div>
+
+                {/* JARIMA */}
+                {totalFines > 0 && (
+                  <div className="mb-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-[8px] text-rose-400 font-black uppercase">⚠ Jarimalar</span>
+                    <span className="text-rose-400 font-black text-xs">−{totalFines.toLocaleString()} UZS</span>
+                  </div>
+                )}
+
+                {/* 3 STAT MINI CARDS */}
+                <div className="grid grid-cols-3 gap-1.5 mb-3">
+                  {[
+                    { label: 'Hisoblangan', val: totalEarned.toLocaleString(), color: 'text-emerald-400' },
+                    { label: 'Berilgan', val: totalTaken.toLocaleString(), color: 'text-yellow-500' },
+                    { label: earnedPct + '% olindi', val: isNegative ? '⚠ Oshdi' : remaining === 0 ? '✅ Tugadi' : '📤 Kerak', color: isNegative ? 'text-rose-400' : remaining === 0 ? 'text-emerald-400' : 'text-violet-400' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-center">
+                      <p className="text-[6px] text-slate-600 font-black uppercase mb-0.5">{s.label}</p>
+                      <p className={`font-black text-[10px] ${s.color}`}>{s.val}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* BAR */}
+                <div className="space-y-1">
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${isNegative ? 'bg-gradient-to-r from-rose-700 to-rose-400' : 'bg-gradient-to-r from-violet-700 to-violet-400'}`}
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[7px] text-slate-600 font-bold">
+                    <span>{isNegative ? '⚠ Ortiqcha berilgan' : 'Berilishi kerak'}</span>
+                    <span className="text-slate-500 group-hover:text-violet-400 transition-colors flex items-center gap-1">Batafsil <ChevronRight size={9}/></span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* GRAND TOTAL FOOTER */}
+        <div className="sticky bottom-0 bg-slate-900 border-t border-slate-800 p-4">
+          <div className="bg-gradient-to-r from-violet-500/10 to-slate-950 border border-violet-500/20 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="text-violet-400" size={16}/>
+                <div>
+                  <p className="text-[8px] text-violet-400 font-black uppercase tracking-widest">Jami Berilishi Kerak</p>
+                  <p className="text-[8px] text-slate-500 font-bold">Barcha ijobiy qoldiqlar yig'indisi</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-violet-400 font-black text-xl italic">
+                  {employeeStats.filter(e => e.remaining > 0).reduce((s, e) => s + e.remaining, 0).toLocaleString()}
+                </p>
+                <p className="text-[9px] text-slate-500 font-bold">UZS</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EmployeeDetailModal = ({ empStats, onClose }) => {
   if (!empStats) return null;
   const { emp, totalTaken, totalEarned, totalFines, remaining, workedDays, payments } = empStats;
-
-  const allDates    = payments.map(p => p.date).filter(Boolean).sort();
-  const minDate     = allDates[0] || '';
-  const maxDate     = allDates[allDates.length - 1] || '';
-
+  const allDates = payments.map(p => p.date).filter(Boolean).sort();
+  const minDate = allDates[0] || '';
+  const maxDate = allDates[allDates.length - 1] || '';
   const [dateFrom, setDateFrom] = useState('');
-  const [dateTo,   setDateTo]   = useState('');
+  const [dateTo, setDateTo] = useState('');
   const isFiltered = dateFrom || dateTo;
-
   const filteredPayments = useMemo(() => {
     if (!isFiltered) return payments;
     return payments.filter(p => {
       const d = p.date || '';
       if (dateFrom && d < dateFrom) return false;
-      if (dateTo   && d > dateTo)   return false;
+      if (dateTo && d > dateTo) return false;
       return true;
     });
   }, [payments, dateFrom, dateTo, isFiltered]);
-
-  const filtTotal     = filteredPayments.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
-  const filtCount     = filteredPayments.length;
+  const filtTotal = filteredPayments.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
+  const filtCount = filteredPayments.length;
   const filtEarnedPct = totalEarned > 0 ? Math.min(Math.round((filtTotal / totalEarned) * 100), 100) : 0;
-
   const byObject = useMemo(() => {
     const map = {};
     filteredPayments.forEach(p => {
@@ -52,7 +258,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
       })
       .sort((a, b) => b.total - a.total);
   }, [filteredPayments]);
-
   const byMonth = useMemo(() => {
     const map = {};
     filteredPayments.forEach(p => {
@@ -62,29 +267,22 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
     });
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).slice(0, 8);
   }, [filteredPayments]);
-
   const maxMonthVal = byMonth[0]?.[1] || 1;
-
   const recentPayments = [...filteredPayments]
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 10);
-
-  const firstPayDate  = allDates[0] || '—';
-  const lastPayDate   = allDates[allDates.length - 1] || '—';
-  const earnedPctAll  = totalEarned > 0 ? Math.min(Math.round((totalTaken / totalEarned) * 100), 100) : 0;
-
+  const firstPayDate = allDates[0] || '—';
+  const lastPayDate = allDates[allDates.length - 1] || '—';
+  const earnedPctAll = totalEarned > 0 ? Math.min(Math.round((totalTaken / totalEarned) * 100), 100) : 0;
   const clearFilter = () => { setDateFrom(''); setDateTo(''); };
-
   return (
     <div
       className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/85"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-slate-900 border border-slate-700 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
-
         {/* STICKY HEADER */}
         <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 pt-5 pb-4 space-y-4">
-
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 shrink-0 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-center justify-center text-yellow-500 font-black text-xl">
@@ -100,7 +298,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               <X className="text-slate-400" size={16}/>
             </button>
           </div>
-
           {/* SANA FILTRI */}
           <div className="bg-slate-950 rounded-2xl border border-violet-500/20 p-3 space-y-2.5">
             <div className="flex items-center justify-between">
@@ -148,37 +345,36 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </div>
             )}
           </div>
-
           {/* Asosiy statistika */}
           <div className="grid grid-cols-2 gap-2">
             {[
               {
                 label: isFiltered ? "Oraliq to'lovlar" : 'Ish kunlari',
-                val:   isFiltered ? filtCount.toString() : `${workedDays}`,
-                unit:  isFiltered ? 'ta' : 'kun',
+                val: isFiltered ? filtCount.toString() : `${workedDays}`,
+                unit: isFiltered ? 'ta' : 'kun',
                 color: 'text-white',
-                bg:    'bg-slate-800/60 border-slate-700'
+                bg: 'bg-slate-800/60 border-slate-700'
               },
               {
                 label: isFiltered ? 'Oraliq jami' : 'Jami olgan',
-                val:   (isFiltered ? filtTotal : totalTaken).toLocaleString(),
-                unit:  'UZS',
+                val: (isFiltered ? filtTotal : totalTaken).toLocaleString(),
+                unit: 'UZS',
                 color: 'text-yellow-500',
-                bg:    'bg-yellow-500/10 border-yellow-500/20'
+                bg: 'bg-yellow-500/10 border-yellow-500/20'
               },
               {
                 label: 'Umumiy summa',
-                val:    totalEarned.toLocaleString(),
-                unit:  'UZS — barcha vaqt',
+                val: totalEarned.toLocaleString(),
+                unit: 'UZS — barcha vaqt',
                 color: 'text-blue-400',
-                bg:    'bg-blue-500/10 border-blue-500/20'
+                bg: 'bg-blue-500/10 border-blue-500/20'
               },
               {
                 label: 'Qoldiq',
-                val:   remaining.toLocaleString(),
-                unit:  'UZS',
+                val: remaining.toLocaleString(),
+                unit: 'UZS',
                 color: remaining >= 0 ? 'text-emerald-400' : 'text-rose-400',
-                bg:    remaining >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'
+                bg: remaining >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'
               },
             ].map(s => (
               <div key={s.label} className={`p-3 rounded-xl border text-center ${s.bg}`}>
@@ -188,7 +384,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </div>
             ))}
           </div>
-
           {/* Jarima ko'rsatgichi */}
           {totalFines > 0 && (
             <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
@@ -197,9 +392,7 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
             </div>
           )}
         </div>
-
         <div className="p-5 space-y-5">
-
           {/* PROGRESS BAR */}
           <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 space-y-2">
             <div className="flex justify-between items-center">
@@ -237,14 +430,13 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               )}
             </div>
           </div>
-
           {/* QO'SHIMCHA MA'LUMOTLAR */}
           <div className="grid grid-cols-2 gap-2">
             {[
-              { icon: <TrendingUp size={12}/>, label: 'Kunlik stavka',    val: `${(Number(emp.salaryRate)||0).toLocaleString()} UZS`, color: 'text-blue-400',   accent: 'text-blue-400' },
-              { icon: <Hash size={12}/>,       label: "Jami to'lovlar",   val: `${payments.length} ta`,                               color: 'text-purple-400', accent: 'text-purple-400' },
-              { icon: <Clock size={12}/>,      label: "Birinchi to'lov",  val: firstPayDate,                                          color: 'text-slate-300',  accent: 'text-slate-400' },
-              { icon: <Clock size={12}/>,      label: "Oxirgi to'lov",    val: lastPayDate,                                           color: 'text-slate-300',  accent: 'text-slate-400' },
+              { icon: <TrendingUp size={12}/>, label: 'Kunlik stavka', val: `${(Number(emp.salaryRate)||0).toLocaleString()} UZS`, color: 'text-blue-400', accent: 'text-blue-400' },
+              { icon: <Hash size={12}/>, label: "Jami to'lovlar", val: `${payments.length} ta`, color: 'text-purple-400', accent: 'text-purple-400' },
+              { icon: <Clock size={12}/>, label: "Birinchi to'lov", val: firstPayDate, color: 'text-slate-300', accent: 'text-slate-400' },
+              { icon: <Clock size={12}/>, label: "Oxirgi to'lov", val: lastPayDate, color: 'text-slate-300', accent: 'text-slate-400' },
             ].map(s => (
               <div key={s.label} className="bg-slate-950 rounded-xl border border-slate-800 p-3">
                 <div className={`flex items-center gap-1.5 mb-1 ${s.accent}`}>{s.icon}<span className="text-[7px] font-black uppercase tracking-widest">{s.label}</span></div>
@@ -252,7 +444,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </div>
             ))}
           </div>
-
           {/* OBYEKTLAR BO'YICHA */}
           {byObject.length > 0 && (
             <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
@@ -290,7 +481,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </div>
             </div>
           )}
-
           {/* OY BO'YICHA GRAFIK */}
           {byMonth.length > 0 && (
             <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
@@ -321,7 +511,6 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </div>
             </div>
           )}
-
           {/* TO'LOVLAR RO'YXATI */}
           {recentPayments.length > 0 ? (
             <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
@@ -362,111 +551,86 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
               </button>
             </div>
           ) : null}
-
         </div>
       </div>
     </div>
   );
 };
-
 // ═══════════════════════════════════════════════════════════
 // MAIN PAYROLL COMPONENT
 // ═══════════════════════════════════════════════════════════
 const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onLog, onRefresh }) => {
-  const [activeTab, setActiveTab]               = useState('salary');
-  const [financeView, setFinanceView]           = useState('overview');
-  const [selectedMonth, setSelectedMonth]       = useState(new Date().toISOString().slice(0, 7));
-  const [expandedMonth, setExpandedMonth]       = useState(null);
-  const [expandedObject, setExpandedObject]     = useState(null);
+  const [activeTab, setActiveTab] = useState('salary');
+  const [financeView, setFinanceView] = useState('overview');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [expandedMonth, setExpandedMonth] = useState(null);
+  const [expandedObject, setExpandedObject] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
-
-  const [showSalaryModal, setShowSalaryModal]   = useState(false);
-  const [salaryEmp, setSalaryEmp]               = useState(null);
-  const [salaryAmount, setSalaryAmount]         = useState('');
-  const [salaryObjectId, setSalaryObjectId]     = useState('');
-  const [salaryLoading, setSalaryLoading]       = useState(false);
-
-  const [detailEmpStats, setDetailEmpStats]     = useState(null);
-
-  const [manualEmpId,   setManualEmpId]   = useState('');
-  const [manualObjId,   setManualObjId]   = useState('');
-  const [manualDate,    setManualDate]    = useState(new Date().toISOString().split('T')[0]);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryEmp, setSalaryEmp] = useState(null);
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [salaryObjectId, setSalaryObjectId] = useState('');
+  const [salaryLoading, setSalaryLoading] = useState(false);
+  const [detailEmpStats, setDetailEmpStats] = useState(null);
+  const [showUmumiyHisob, setShowUmumiyHisob] = useState(false); // ✅ YANGI STATE
+  const [manualEmpId, setManualEmpId] = useState('');
+  const [manualObjId, setManualObjId] = useState('');
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualLoading, setManualLoading] = useState(false);
-  const [manualMsg,     setManualMsg]     = useState(null);
-
+  const [manualMsg, setManualMsg] = useState(null);
   const pendingAttendance = attendance.filter(a => a.status === 'PENDING');
-
   const approvedPayroll = useMemo(() => payroll.filter(p => p.status === 'APPROVED'), [payroll]);
-
   const currentMonthPayroll = useMemo(() =>
     approvedPayroll.filter(p => p.month === selectedMonth),
   [approvedPayroll, selectedMonth]);
-
   const currentMonthTotal = useMemo(() =>
     currentMonthPayroll.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0),
   [currentMonthPayroll]);
-
   const allTimeTotal = useMemo(() =>
     approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0),
   [approvedPayroll]);
-
   const objectStats = useMemo(() => {
     return objects.map(obj => {
-      const objId    = obj._id || obj.id;
+      const objId = obj._id || obj.id;
       const payments = approvedPayroll.filter(p =>
         String(p.objectId?._id || p.objectId) === String(objId)
       );
-      const total      = payments.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
-      const budget     = Number(obj.totalBudget) || 0;
-      const balance    = budget - total;
-      const empIds     = [...new Set(payments.map(p => String(p.employeeId?._id || p.employeeId)))];
-      const pct        = budget > 0 ? Math.min(Math.round((total / budget) * 100), 100) : 0;
+      const total = payments.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
+      const budget = Number(obj.totalBudget) || 0;
+      const balance = budget - total;
+      const empIds = [...new Set(payments.map(p => String(p.employeeId?._id || p.employeeId)))];
+      const pct = budget > 0 ? Math.min(Math.round((total / budget) * 100), 100) : 0;
       const isNegative = budget > 0 && balance < 0;
       return { obj, objId, total, budget, balance, empIds, pct, isNegative, payments };
     }).sort((a, b) => b.total - a.total);
   }, [objects, approvedPayroll]);
-
-  // ✅ TO'G'RILANGAN: objNames ham hisoblanadi, totalFines ham
   const employeeStats = useMemo(() => {
     return employees
       .filter(e => e.status === 'ACTIVE')
       .map(emp => {
         const empId = emp._id || emp.id;
-
-        // Payroll to'lovlari
         const payments = approvedPayroll.filter(p =>
           String(p.employeeId?._id || p.employeeId) === String(empId)
         );
-
         const totalTaken = payments.reduce(
           (s, p) => s + (Number(p.calculatedSalary) || 0),
           0
         );
-
-        // Ish kunlari
         const workedDays = attendance.filter(a =>
           String(a.employeeId?._id || a.employeeId) === String(empId) &&
           a.status === 'PRESENT'
         ).length;
-
         const totalEarned = workedDays * (Number(emp.salaryRate) || 0);
-
-        // ✅ JARIMALAR — fines props dan
         const totalFines = (fines || [])
           .filter(f =>
             String(f.employeeId?._id || f.employeeId) === String(empId) &&
             f.status === 'ACTIVE'
           )
           .reduce((s, f) => s + (Number(f.amount) || 0), 0);
-
-        // ✅ REMAINING — jarimani hisobga olgan holda
         const remaining = totalEarned - totalTaken - totalFines;
-
-        // ✅ OBYEKT NOMLARI — finance tabida kerak
         const objNames = [...new Set(
           payments.map(p => p.objectName).filter(Boolean)
         )];
-
         return {
           emp,
           empId,
@@ -476,15 +640,13 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           remaining,
           workedDays,
           payments,
-          objNames,  // ✅ QOSHILDI
+          objNames,
         };
       })
       .sort((a, b) => b.totalTaken - a.totalTaken);
   }, [employees, attendance, approvedPayroll, fines]);
-
   const topEmployee = employeeStats[0] || null;
-  const topObject   = objectStats[0]   || null;
-
+  const topObject = objectStats[0] || null;
   const filteredHistoryByDate = useMemo(() => {
     const filtered = approvedPayroll.filter(p => {
       if (!selectedEmployee) return true;
@@ -498,12 +660,10 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
     });
     return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
   }, [approvedPayroll, selectedEmployee]);
-
   const selectedEmpStats = useMemo(() => {
     if (!selectedEmployee) return null;
     return employeeStats.find(s => String(s.empId) === String(selectedEmployee)) || null;
   }, [selectedEmployee, employeeStats]);
-
   const manualExistingAtt = useMemo(() => {
     if (!manualEmpId || !manualDate) return null;
     return attendance.find(a =>
@@ -511,43 +671,33 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
       a.date === manualDate
     ) || null;
   }, [attendance, manualEmpId, manualDate]);
-
   const manualDateAtts = useMemo(() => {
     if (!manualDate) return [];
     return [...attendance]
       .filter(a => a.date === manualDate)
       .sort((a, b) => (a.status === 'PRESENT' ? -1 : 1));
   }, [attendance, manualDate]);
-
-  // ✅ TO'G'RILANGAN getEmpBalance — fines props ishlatadi
   const getEmpBalance = (emp) => {
-    const empId    = emp._id || emp.id;
+    const empId = emp._id || emp.id;
     const dailyRate = Number(emp.salaryRate) || 0;
-
     const workedDays = attendance.filter(a => {
       const aId = a.employeeId?._id || a.employeeId;
       return String(aId) === String(empId) && a.status === 'PRESENT';
     }).length;
-
     const totalEarned = workedDays * dailyRate;
-
     const totalTaken = approvedPayroll
       .filter(p => {
         const pId = p.employeeId?._id || p.employeeId;
         return String(pId) === String(empId);
       })
       .reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
-
-    // ✅ fines props dan — Employee.balance ga bog'lanmaydi
     const totalFines = (fines || [])
       .filter(f =>
         String(f.employeeId?._id || f.employeeId) === String(empId) &&
         f.status === 'ACTIVE'
       )
       .reduce((s, f) => s + (Number(f.amount) || 0), 0);
-
     const remaining = totalEarned - totalTaken - totalFines;
-
     return {
       workedDays,
       totalEarned,
@@ -557,33 +707,31 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
       dailyRate,
     };
   };
-
   const openSalaryModal = (emp) => {
     setSalaryEmp(emp); setSalaryAmount(''); setSalaryObjectId(''); setShowSalaryModal(true);
   };
   const closeSalaryModal = () => {
     setShowSalaryModal(false); setSalaryEmp(null); setSalaryAmount(''); setSalaryObjectId('');
   };
-
   const handleGiveSalary = async () => {
     if (!salaryEmp || !salaryAmount || Number(salaryAmount) <= 0) return alert("Summani kiriting!");
     if (!salaryObjectId) return alert("Obyektni tanlang!");
     setSalaryLoading(true);
     try {
-      const today   = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0];
       const objName = objects.find(o => (o._id || o.id) === salaryObjectId)?.name || '';
       await api.createPayroll({
-        employeeId:       salaryEmp._id || salaryEmp.id,
-        employeeName:     salaryEmp.name,
+        employeeId: salaryEmp._id || salaryEmp.id,
+        employeeName: salaryEmp.name,
         calculatedSalary: Number(salaryAmount),
-        amount:           Number(salaryAmount),
-        date:             today,
-        month:            today.slice(0, 7),
-        type:             'DAILY_PAY',
-        status:           'APPROVED',
-        paymentStatus:    'paid',
-        objectId:         salaryObjectId,
-        objectName:       objName,
+        amount: Number(salaryAmount),
+        date: today,
+        month: today.slice(0, 7),
+        type: 'DAILY_PAY',
+        status: 'APPROVED',
+        paymentStatus: 'paid',
+        objectId: salaryObjectId,
+        objectName: objName,
       });
       onLog(`${salaryEmp.name}ga ${Number(salaryAmount).toLocaleString()} UZS oylik berildi (${objName})`);
       closeSalaryModal();
@@ -594,33 +742,29 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
       setSalaryLoading(false);
     }
   };
-
   const handleApproveAttendance = async (id) => {
     try { await api.approveAttendance(id); onLog("Davomat tasdiqlandi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
-
   const handleRejectPayroll = async (id) => {
     if (!window.confirm("O'chirilsinmi?")) return;
     try { await api.deletePayroll(id); onLog("To'lov o'chirildi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
-
   const handleRejectAttendance = async (id) => {
     if (!window.confirm("O'chirilsinmi?")) return;
     try { await api.deleteAttendance(id); onLog("Davomat o'chirildi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
-
   const handleManualAttendance = async () => {
     if (!manualEmpId) return setManualMsg({ type: 'err', text: "Xodimni tanlang!" });
     if (!manualObjId) return setManualMsg({ type: 'err', text: "Obyektni tanlang!" });
-    if (!manualDate)  return setManualMsg({ type: 'err', text: "Sanani kiriting!" });
+    if (!manualDate) return setManualMsg({ type: 'err', text: "Sanani kiriting!" });
     setManualLoading(true);
     setManualMsg(null);
     try {
-      const emp     = employees.find(e => (e._id || e.id) === manualEmpId);
-      const obj     = objects.find(o => (o._id || o.id) === manualObjId);
+      const emp = employees.find(e => (e._id || e.id) === manualEmpId);
+      const obj = objects.find(o => (o._id || o.id) === manualObjId);
       const objName = obj?.name || '';
       await api.upsertAttendance({
         employeeId: manualEmpId, objectId: manualObjId, objectName: objName,
@@ -635,47 +779,94 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
       setManualLoading(false);
     }
   };
-
   const changeYear = (delta) => {
     const [year, month] = selectedMonth.split('-');
     const newYear = Number(year) + delta;
     if (newYear > new Date().getFullYear()) return;
     setSelectedMonth(`${newYear}-${month}`);
   };
-
-  const selectedYear     = selectedMonth.slice(0, 4);
+  const selectedYear = selectedMonth.slice(0, 4);
   const selectedMonthIdx = Number(selectedMonth.slice(5, 7)) - 1;
+
+  // ✅ Umumiy hisob — faqat ijobiy qoldiqlar yig'indisi
+  const totalPendingPayout = useMemo(() =>
+    employeeStats.filter(e => e.remaining > 0).reduce((s, e) => s + e.remaining, 0),
+  [employeeStats]);
 
   return (
     <div className="space-y-4 pb-10">
-
       {/* TAB BAR */}
       <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-xl gap-1">
-        <TabBtn active={activeTab === 'salary'}     onClick={() => setActiveTab('salary')}     icon={<Banknote size={14}/>}      label="Oylik" />
-        <TabBtn active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<CheckCircle size={14}/>}   label="Davomat" badge={pendingAttendance.length} />
-        <TabBtn active={activeTab === 'manual'}     onClick={() => setActiveTab('manual')}     icon={<ClipboardList size={14}/>} label="Davomat+" accent />
-        <TabBtn active={activeTab === 'finance'}    onClick={() => setActiveTab('finance')}    icon={<DollarSign size={14}/>}    label="Moliya" />
+        <TabBtn active={activeTab === 'salary'} onClick={() => setActiveTab('salary')} icon={<Banknote size={14}/>} label="Oylik" />
+        <TabBtn active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<CheckCircle size={14}/>} label="Davomat" badge={pendingAttendance.length} />
+        <TabBtn active={activeTab === 'manual'} onClick={() => setActiveTab('manual')} icon={<ClipboardList size={14}/>} label="Davomat+" accent />
+        <TabBtn active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={<DollarSign size={14}/>} label="Moliya" />
       </div>
-
       {/* ══════════════════════════════════════
           OYLIK BERISH
       ══════════════════════════════════════ */}
       {activeTab === 'salary' && (
         <div className="space-y-3">
           <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4">
-            <div className="flex items-center gap-3">
-              <UserCheck className="text-yellow-500 shrink-0" size={18}/>
-              <div>
-                <h2 className="text-white font-black italic uppercase text-sm">Oylik Berish</h2>
-                <p className="text-slate-500 text-[9px] font-black uppercase">Xodimni tanlang va oylik bering</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <UserCheck className="text-yellow-500 shrink-0" size={18}/>
+                <div>
+                  <h2 className="text-white font-black italic uppercase text-sm">Oylik Berish</h2>
+                  <p className="text-slate-500 text-[9px] font-black uppercase">Xodimni tanlang va oylik bering</p>
+                </div>
               </div>
+              {/* ✅ YANGI — UMUMIY HISOB TUGMASI */}
+              <button
+                onClick={() => setShowUmumiyHisob(true)}
+                className="relative flex items-center gap-2 px-3 py-2.5 bg-violet-600 hover:bg-violet-500 active:scale-95 text-white font-black rounded-xl text-[9px] uppercase transition-all shrink-0 shadow-lg shadow-violet-500/20 overflow-hidden group"
+              >
+                {/* shimmer effect */}
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"/>
+                <Calculator size={13}/>
+                <span className="hidden sm:inline">Umumiy Hisob</span>
+                <span className="sm:hidden">Hisob</span>
+                {totalPendingPayout > 0 && (
+                  <span className="bg-white/20 text-white text-[7px] font-black px-1.5 py-0.5 rounded-lg leading-none">
+                    {(totalPendingPayout / 1000000).toFixed(1)}M
+                  </span>
+                )}
+              </button>
             </div>
           </div>
+
+          {/* ✅ YANGI — MINI SUMMARY BANNER (agar xodimlar bo'lsa) */}
+          {employeeStats.length > 0 && (
+            <button
+              onClick={() => setShowUmumiyHisob(true)}
+              className="w-full bg-gradient-to-r from-violet-500/10 via-slate-950 to-slate-950 border border-violet-500/20 rounded-2xl p-3.5 flex items-center justify-between hover:border-violet-500/40 hover:from-violet-500/15 active:scale-[0.99] transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-violet-500/15 border border-violet-500/25 rounded-xl flex items-center justify-center shrink-0">
+                  <Wallet className="text-violet-400" size={15}/>
+                </div>
+                <div className="text-left">
+                  <p className="text-[8px] text-violet-400 font-black uppercase tracking-widest">Berilishi Kerak Bo'lgan Jami</p>
+                  <p className="text-[7px] text-slate-500 font-bold mt-0.5">
+                    {employeeStats.filter(e => e.remaining > 0).length} ta xodim •
+                    {employeeStats.filter(e => e.remaining < 0).length > 0 && ` ${employeeStats.filter(e => e.remaining < 0).length} ta ortiqcha`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-violet-400 font-black text-lg italic leading-tight">{totalPendingPayout.toLocaleString()}</p>
+                  <p className="text-[8px] text-slate-600 font-bold">UZS</p>
+                </div>
+                <ChevronRight size={14} className="text-slate-600 group-hover:text-violet-400 transition-colors shrink-0"/>
+              </div>
+            </button>
+          )}
 
           {employees.filter(e => e.status === 'ACTIVE').length === 0 ? (
             <Empty text="Faol xodimlar yo'q"/>
           ) : employees.filter(e => e.status === 'ACTIVE').map(emp => {
-            const bal     = getEmpBalance(emp);
+            const bal = getEmpBalance(emp);
             const empStat = employeeStats.find(s => String(s.empId) === String(emp._id || emp.id));
             return (
               <div key={emp._id || emp.id} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-lg">
@@ -694,34 +885,51 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                     💵 Berish
                   </button>
                 </div>
-
-                {/* ✅ Jarima ko'rsatkichi */}
+                {/* Jarima ko'rsatkichi */}
                 {bal.totalFines > 0 && (
                   <div className="mb-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between">
                     <span className="text-[8px] text-rose-400 font-black uppercase">⚠ Jarima</span>
                     <span className="text-rose-400 font-black text-xs">−{bal.totalFines.toLocaleString()} UZS</span>
                   </div>
                 )}
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 text-center">
-                    <p className="text-[8px] text-slate-500 font-black uppercase mb-0.5">Ish kunlari</p>
-                    <p className="font-black text-sm leading-tight text-white">{bal.workedDays}</p>
-                    <p className="text-[8px] text-slate-600">kun</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* BUTTON */}
                   <button
                     onClick={() => empStat && setDetailEmpStats(empStat)}
-                    className="bg-slate-900/60 p-2.5 rounded-xl border border-blue-500/30 text-center hover:bg-blue-500/10 hover:border-blue-500/50 active:scale-95 transition-all group relative"
+                    className="h-24 w-full bg-slate-900/60 p-4 rounded-2xl border border-blue-500/30
+                    flex flex-col justify-center items-center text-center
+                    hover:bg-blue-500/10 hover:border-blue-500/50 active:scale-95 transition-all group relative"
                   >
-                    <p className="text-[8px] text-blue-400 font-black uppercase mb-0.5">To'liq ma'lumot</p>
-                    <ChevronRight size={10} className="absolute top-1 right-1 text-blue-500/50 group-hover:text-blue-400 transition-colors"/>
+                    <p className="text-[10px] text-blue-400 font-black uppercase mb-1">
+                      To'liq ma'lumot
+                    </p>
+                    <ChevronRight
+                      size={14}
+                      className="absolute top-2 right-2 text-blue-500/50 group-hover:text-blue-400 transition-colors"
+                    />
                   </button>
-                  <div className={`bg-slate-900/60 p-2.5 rounded-xl border text-center ${bal.remaining >= 0 ? 'border-slate-800' : 'border-rose-500/20'}`}>
-                    <p className="text-[8px] text-slate-500 font-black uppercase mb-0.5">Qoldiq</p>
-                    <p className={`font-black text-sm leading-tight ${bal.remaining >= 0 ? 'text-yellow-500' : 'text-rose-500'}`}>
+                  {/* QOLDIQ */}
+                  <div
+                    className={`h-24 w-full bg-slate-900/60 p-4 rounded-2xl border
+                    flex flex-col justify-center items-center text-center ${
+                      bal.remaining >= 0
+                        ? "border-slate-800"
+                        : "border-rose-500/20"
+                    }`}
+                  >
+                    <p className="text-[10px] text-slate-500 font-black uppercase mb-1">
+                      Qoldiq
+                    </p>
+                    <p
+                      className={`font-black text-lg leading-tight ${
+                        bal.remaining >= 0
+                          ? "text-yellow-500"
+                          : "text-rose-500"
+                      }`}
+                    >
                       {bal.remaining.toLocaleString()}
                     </p>
-                    <p className="text-[8px] text-slate-600">UZS</p>
+                    <p className="text-[10px] text-slate-600">UZS</p>
                   </div>
                 </div>
               </div>
@@ -729,7 +937,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           })}
         </div>
       )}
-
       {/* ══════════════════════════════════════
           DAVOMAT PENDING
       ══════════════════════════════════════ */}
@@ -738,7 +945,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           {pendingAttendance.length === 0 ? (
             <Empty text="Yangi davomat so'rovi yo'q"/>
           ) : pendingAttendance.map(a => {
-            const id  = a._id || a.id;
+            const id = a._id || a.id;
             const emp = employees.find(e => String(e._id || e.id) === String(a.employeeId?._id || a.employeeId));
             return (
               <div key={id} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-md">
@@ -752,7 +959,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                   </div>
                   <div className="flex gap-2 ml-3 shrink-0">
                     <button onClick={() => handleApproveAttendance(id)} className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white active:scale-95 transition-all"><CheckCircle size={18}/></button>
-                    <button onClick={() => handleRejectAttendance(id)}  className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white active:scale-95 transition-all"><Trash2 size={18}/></button>
+                    <button onClick={() => handleRejectAttendance(id)} className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white active:scale-95 transition-all"><Trash2 size={18}/></button>
                   </div>
                 </div>
               </div>
@@ -760,7 +967,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           })}
         </div>
       )}
-
       {/* ══════════════════════════════════════
           DAVOMAT+
       ══════════════════════════════════════ */}
@@ -777,7 +983,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               </div>
             </div>
           </div>
-
           <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 space-y-3 shadow-xl">
             <div>
               <label className="text-[8px] text-slate-500 font-black uppercase tracking-widest block mb-1.5">Xodim</label>
@@ -823,7 +1028,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               {manualLoading ? 'Saqlanmoqda...' : <><Plus size={16}/> Davomatni Tasdiqlash</>}
             </button>
           </div>
-
           {manualDateAtts.length > 0 && (
             <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
               <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between">
@@ -837,7 +1041,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               </div>
               <div className="divide-y divide-slate-900 max-h-[380px] overflow-y-auto">
                 {manualDateAtts.map(a => {
-                  const id  = a._id || a.id;
+                  const id = a._id || a.id;
                   const emp = employees.find(e => String(e._id || e.id) === String(a.employeeId?._id || a.employeeId));
                   return (
                     <div key={id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-900/20 transition-colors">
@@ -868,7 +1072,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           )}
         </div>
       )}
-
       {/* ══════════════════════════════════════
           MOLIYA
       ══════════════════════════════════════ */}
@@ -886,7 +1089,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               <p className="text-[9px] text-slate-500 font-bold mt-0.5">ta to'lov amalga oshirildi</p>
             </div>
           </div>
-
           {(topEmployee || topObject) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {topEmployee && (
@@ -900,7 +1102,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                       <p className="text-amber-500 font-black text-base italic">{topEmployee.totalTaken.toLocaleString()} UZS</p>
                     </div>
                   </div>
-                  {/* ✅ objNames endi mavjud */}
                   <div className="mt-3 flex gap-1 flex-wrap">
                     {(topEmployee.objNames || []).map((n, i) => (
                       <span key={i} className="text-[8px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-bold">{n}</span>
@@ -924,13 +1125,12 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               )}
             </div>
           )}
-
           <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 overflow-x-auto">
             {[
-              { key:'overview',   icon:<BarChart3 size={12}/>, label:'Oy tahlili' },
-              { key:'byObject',   icon:<Building2 size={12}/>, label:'Obyektlar'  },
-              { key:'byEmployee', icon:<Users size={12}/>,     label:'Xodimlar'   },
-              { key:'history',    icon:<Calendar size={12}/>,  label:'Tarix'      },
+              { key:'overview', icon:<BarChart3 size={12}/>, label:'Oy tahlili' },
+              { key:'byObject', icon:<Building2 size={12}/>, label:'Obyektlar' },
+              { key:'byEmployee', icon:<Users size={12}/>, label:'Xodimlar' },
+              { key:'history', icon:<Calendar size={12}/>, label:'Tarix' },
             ].map(({ key, icon, label }) => (
               <button key={key} onClick={() => setFinanceView(key)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-black text-[9px] uppercase transition-all whitespace-nowrap ${financeView === key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-900'}`}>
@@ -938,7 +1138,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               </button>
             ))}
           </div>
-
           {/* OY TAHLILI */}
           {financeView === 'overview' && (
             <div className="space-y-4">
@@ -946,7 +1145,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                 <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-3">Oy tanlang</p>
                 <div className="grid grid-cols-4 gap-2 mb-3">
                   {MONTH_SHORT.map((label, i) => {
-                    const val        = `${selectedYear}-${String(i+1).padStart(2,'0')}`;
+                    const val = `${selectedYear}-${String(i+1).padStart(2,'0')}`;
                     const isSelected = selectedMonth === val;
                     const monthTotal = approvedPayroll.filter(p => p.month === val).reduce((s,p) => s+(Number(p.calculatedSalary)||0), 0);
                     return (
@@ -964,7 +1163,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                   <button onClick={() => changeYear(1)} disabled={Number(selectedYear) >= new Date().getFullYear()} className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 font-black active:scale-95 transition-all">›</button>
                 </div>
               </div>
-
               <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
                 <div className="p-4 border-b border-slate-800 bg-slate-900/30">
                   <div className="flex items-center justify-between gap-3">
@@ -1038,7 +1236,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               </div>
             </div>
           )}
-
           {/* OBYEKTLAR */}
           {financeView === 'byObject' && (
             <div className="space-y-3">
@@ -1121,8 +1318,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               }
             </div>
           )}
-
-          {/* XODIMLAR — bosib detal modal */}
+          {/* XODIMLAR */}
           {financeView === 'byEmployee' && (
             <div className="space-y-3">
               {employeeStats.length === 0
@@ -1150,15 +1346,12 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                           <ChevronRight size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors shrink-0"/>
                         </div>
                       </div>
-
-                      {/* ✅ Jarima ko'rsatkichi */}
                       {totalFines > 0 && (
                         <div className="mb-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between">
                           <span className="text-[8px] text-rose-400 font-black uppercase">⚠ Jarimalar</span>
                           <span className="text-rose-400 font-black text-xs">−{totalFines.toLocaleString()} UZS</span>
                         </div>
                       )}
-
                       <div className="mb-3 space-y-1">
                         <div className="flex justify-between text-[8px] font-black uppercase">
                           <span className="text-slate-500">Olingan / Hisoblangan</span>
@@ -1183,7 +1376,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
               }
             </div>
           )}
-
           {/* TARIX */}
           {financeView === 'history' && (
             <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
@@ -1223,9 +1415,9 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      {label:"To'lovlar",    val:`${selectedEmpStats.payments.length} ta`,      color:'text-white'},
-                      {label:"Hisoblangan",  val:selectedEmpStats.totalEarned.toLocaleString(),  color:'text-emerald-500'},
-                      {label:"Qoldiq",       val:selectedEmpStats.remaining.toLocaleString(),    color:selectedEmpStats.remaining>=0?'text-yellow-500':'text-rose-500'},
+                      {label:"To'lovlar", val:`${selectedEmpStats.payments.length} ta`, color:'text-white'},
+                      {label:"Hisoblangan", val:selectedEmpStats.totalEarned.toLocaleString(), color:'text-emerald-500'},
+                      {label:"Qoldiq", val:selectedEmpStats.remaining.toLocaleString(), color:selectedEmpStats.remaining>=0?'text-yellow-500':'text-rose-500'},
                     ].map(s => (
                       <div key={s.label} className="bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800 text-center">
                         <p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">{s.label}</p>
@@ -1239,7 +1431,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                 {filteredHistoryByDate.length === 0
                   ? <div className="py-16 text-center text-slate-700 font-black uppercase text-xs">To'lovlar tarixi yo'q</div>
                   : filteredHistoryByDate.map(([date, records]) => {
-                    const dayTotal   = records.reduce((s,r) => s+(Number(r.calculatedSalary)||0),0);
+                    const dayTotal = records.reduce((s,r) => s+(Number(r.calculatedSalary)||0),0);
                     const isExpanded = expandedMonth === date;
                     return (
                       <div key={date} className="border border-slate-800 rounded-xl overflow-hidden">
@@ -1291,7 +1483,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           )}
         </div>
       )}
-
       {/* ══════════════════════════════════════
           OYLIK BERISH MODALI
       ══════════════════════════════════════ */}
@@ -1332,10 +1523,10 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
                 {objects.map(obj => <option key={obj._id||obj.id} value={obj._id||obj.id}>{obj.name}</option>)}
               </select>
               {salaryObjectId && (() => {
-                const obj    = objects.find(o => (o._id||o.id) === salaryObjectId);
+                const obj = objects.find(o => (o._id||o.id) === salaryObjectId);
                 if (!obj) return null;
-                const budget  = Number(obj.totalBudget)||0;
-                const spent   = approvedPayroll.filter(p => String(p.objectId?._id||p.objectId)===String(obj._id||obj.id)).reduce((s,p)=>s+(Number(p.calculatedSalary)||0),0);
+                const budget = Number(obj.totalBudget)||0;
+                const spent = approvedPayroll.filter(p => String(p.objectId?._id||p.objectId)===String(obj._id||obj.id)).reduce((s,p)=>s+(Number(p.calculatedSalary)||0),0);
                 const balance = budget-spent;
                 const hasBudget=budget>0; const isNeg=hasBudget&&balance<0;
                 const pct = hasBudget?Math.min(Math.round((spent/budget)*100),100):0;
@@ -1389,15 +1580,21 @@ const Payroll = ({ employees, attendance, payroll, fines = [], objects = [], onL
           </div>
         </div>
       )}
-
       {/* XODIM DETAL MODALI */}
       {detailEmpStats && (
         <EmployeeDetailModal empStats={detailEmpStats} onClose={() => setDetailEmpStats(null)}/>
       )}
+      {/* ✅ YANGI — UMUMIY HISOB MODALI */}
+      {showUmumiyHisob && (
+        <UmumiyHisobModal
+          employeeStats={employeeStats}
+          onClose={() => setShowUmumiyHisob(false)}
+          onSelectEmp={(stats) => setDetailEmpStats(stats)}
+        />
+      )}
     </div>
   );
 };
-
 // ══════════════════════════════════
 // HELPER COMPONENTS
 // ══════════════════════════════════
@@ -1417,9 +1614,7 @@ const TabBtn = ({ active, onClick, icon, label, badge, accent }) => (
     )}
   </button>
 );
-
 const Empty = ({ text }) => (
   <div className="bg-slate-950 rounded-2xl border border-slate-800 p-12 text-center text-slate-700 font-black uppercase text-xs">{text}</div>
 );
-
 export default Payroll;
