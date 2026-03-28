@@ -162,7 +162,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
               type="button"
               onClick={() => setModal('add')}
               disabled={!selectedObjectId}
-              className="flex-[2] sm:flex-none min-h-[44px] px-4 sm:px-5 rounded-xl bg-yellow-500 text-slate-950 font-black text-sm uppercase tracking-wide hover:bg-yellow-400 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/15"
+              className="flex-1 sm:flex-none min-h-[44px] px-3 sm:px-5 rounded-xl bg-yellow-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wide hover:bg-yellow-400 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/15 whitespace-nowrap overflow-hidden"
             >
               <Plus size={18} />
               <span className="truncate">Material qo&apos;shish</span>
