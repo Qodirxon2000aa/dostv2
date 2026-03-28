@@ -145,7 +145,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
             </div>
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tight truncate">Ombor</h1>
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Material qoldiqlari</p>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Materiallar</p>
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
