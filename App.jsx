@@ -41,7 +41,9 @@ const App = () => {
     }
   });
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const [employees,  setEmployees]  = useState([]);
@@ -62,6 +64,16 @@ const App = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // Mobil / planshet: breakpoint o‘zgarganda sidebar (desktopda ochiq, telefonda yopiq)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const syncSidebar = () => {
+      setIsSidebarOpen(mq.matches);
+    };
+    mq.addEventListener('change', syncSidebar);
+    return () => mq.removeEventListener('change', syncSidebar);
   }, []);
 
   // Ma'lumotlarni yuklash
@@ -136,7 +148,7 @@ const App = () => {
     <Link
       to={to}
       onClick={() => setIsSidebarOpen(false)}
-      className="flex items-center gap-3 px-4 py-3 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-yellow-500 transition-all font-semibold"
+      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-400 rounded-xl hover:bg-slate-900 hover:text-yellow-500 transition-all font-semibold min-h-[44px] sm:min-h-0"
     >
       {icon} <span>{label}</span>
     </Link>
@@ -156,19 +168,19 @@ const App = () => {
           path="/*"
           element={
             currentUser ? (
-              <div className="flex h-screen bg-slate-900 overflow-hidden">
+              <div className="flex h-[100dvh] min-h-0 bg-slate-900 overflow-hidden">
 
                 {/* SIDEBAR */}
                 <aside 
-                  className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-950 border-r border-slate-800 flex flex-col 
-                    transition-transform md:relative md:translate-x-0 
+                  className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-1rem))] max-w-[90vw] sm:w-72 bg-slate-950 border-r border-slate-800 flex flex-col 
+                    transition-transform duration-200 ease-out md:relative md:translate-x-0 md:max-w-none
                     ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                   {/* Logo */}
-                  <div className="flex items-center justify-between h-24 px-8 border-b border-slate-800 shrink-0">
-                    <div className="flex items-center gap-3">
-                      <Zap className="w-8 h-8 text-yellow-500 fill-yellow-500" />
-                      <span className="text-xl font-black text-white italic tracking-tighter uppercase">
+                  <div className="flex items-center justify-between min-h-[4.5rem] sm:h-24 px-4 sm:px-6 md:px-8 border-b border-slate-800 shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <Zap className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-yellow-500 fill-yellow-500" />
+                      <span className="text-base sm:text-lg md:text-xl font-black text-white italic tracking-tighter uppercase truncate">
                         Dost <span className="text-yellow-500">Electric</span>
                       </span>
                     </div>
@@ -181,7 +193,7 @@ const App = () => {
                   </div>
 
                   {/* Navigatsiya */}
-                  <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scroll">
+                  <nav className="flex-1 min-h-0 p-4 sm:p-5 md:p-6 space-y-1.5 sm:space-y-2 overflow-y-auto custom-scroll">
                     {isAdminOrSuper && (
                       <>
                         <NavItem to="/"           icon={<LayoutDashboard size={20}/>} label="Asosiy Panel" />
@@ -201,7 +213,7 @@ const App = () => {
                   </nav>
 
                   {/* User info */}
-                  <div className="p-6 border-t border-slate-800 shrink-0">
+                  <div className="p-4 sm:p-5 md:p-6 border-t border-slate-800 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-6">
                     <div className="mb-4 px-4 py-3 bg-slate-900 rounded-2xl border border-slate-800 flex items-center gap-3 overflow-hidden">
                       <div className="w-10 h-10 min-w-[40px] rounded-lg bg-yellow-500/10 text-yellow-500 flex items-center justify-center font-black border border-yellow-500/20">
                         {currentUser.name?.[0] || 'U'}
@@ -232,34 +244,36 @@ const App = () => {
                 )}
 
                 {/* MAIN CONTENT */}
-                <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
                   {/* Header */}
-                  <header className="h-24 bg-slate-950/50 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-8 shrink-0">
+                  <header className="app-header-safe min-h-[3.5rem] sm:min-h-[4rem] md:h-24 shrink-0 bg-slate-950/50 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between gap-2 px-3 xs:px-4 sm:px-6 md:px-8 py-2 md:py-0">
                     <button
+                      type="button"
                       onClick={() => setIsSidebarOpen(true)}
-                      className="md:hidden p-2 text-slate-400"
+                      className="md:hidden p-2.5 -ml-1 rounded-xl text-slate-400 hover:bg-slate-800 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      aria-label="Menyuni ochish"
                     >
-                      <Menu size={24} />
+                      <Menu size={22} />
                     </button>
 
-                    <div className="flex items-center gap-4 ml-auto">
+                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4 ml-auto shrink-0">
                       {isAdminOrSuper && (
                         <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-full text-[10px] font-black uppercase">
                           <ShieldCheck size={14} /> 
                           {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
                         </div>
                       )}
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-800 bg-slate-900/50">
-                        <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {isOnline ? 'Online' : 'Offline'}
+                      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full border border-slate-800 bg-slate-900/50">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          {isOnline ? 'Online' : 'Off'}
                         </span>
                       </div>
                     </div>
                   </header>
 
                   {/* Sahifa mazmuni */}
-                  <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+                  <div className="flex-1 min-h-0 app-content-safe p-3 xs:p-4 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden">
                     <Routes>
                       <Route
                         index
@@ -365,9 +379,7 @@ const App = () => {
                         element={isAdminOrSuper ? (
                           <WarehousePage 
                             objects={objects} 
-                            payroll={payroll} 
-                            userRole={currentUser.role} 
-                            onRefresh={loadData} 
+                            currentUser={currentUser}
                           />
                         ) : <Navigate to="/" />}
                       />

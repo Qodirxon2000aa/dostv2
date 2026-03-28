@@ -38,7 +38,7 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-sans">
+    <div className="min-h-[100dvh] min-h-screen bg-slate-950 relative overflow-x-hidden overflow-y-auto font-sans pb-[max(1.5rem,env(safe-area-inset-bottom))]">
 
       {/* Background glow */}
       <div className="absolute top-[-20%] left-[-10%] w-[400px] h-[400px] sm:w-[600px] sm:h-[600px] bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none" />
@@ -46,14 +46,14 @@ const Login = ({ onLogin }) => {
 
       {/* ── LANDING (forma yopiq) ── */}
       {!showLoginForm && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-          <div className="space-y-6 max-w-sm w-full">
+        <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 py-8 sm:p-6 text-center">
+          <div className="space-y-5 sm:space-y-6 max-w-sm w-full">
             {/* Logo */}
-            <div className="space-y-2">
-              <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none uppercase italic">
+            <div className="space-y-1 sm:space-y-2">
+              <h1 className="text-4xl xs:text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none uppercase italic">
                 DOST
               </h1>
-              <h1 className="text-5xl sm:text-7xl font-black text-yellow-500 tracking-tighter leading-none uppercase italic">
+              <h1 className="text-4xl xs:text-5xl sm:text-7xl font-black text-yellow-500 tracking-tighter leading-none uppercase italic">
                 ELECTRIC
               </h1>
             </div>
@@ -81,7 +81,7 @@ const Login = ({ onLogin }) => {
 
       {/* ── LOGIN FORMA ── */}
       {showLoginForm && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-5">
+        <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 py-6 sm:p-5">
           <div className="w-full max-w-sm space-y-6">
 
             {/* Sarlavha */}

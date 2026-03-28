@@ -137,10 +137,10 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
       {/* ── SARLAVHA ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight italic uppercase">
+          <h1 className="text-lg xs:text-xl sm:text-2xl font-black text-white tracking-tight italic uppercase leading-tight">
             Tizim <span className="text-yellow-500">Ma'lumotlari</span>
           </h1>
-          <p className="text-slate-500 text-xs font-medium mt-0.5">
+          <p className="text-slate-500 text-[11px] xs:text-xs font-medium mt-0.5">
             Sana yoki oraliq tanlang — ma'lumotlar ko'rinadi.
           </p>
         </div>
@@ -176,8 +176,9 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
         {/* Single mode */}
         {mode === 'single' && (
           <>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => goDay(-1)}
                 className="w-9 h-9 bg-slate-900 hover:bg-slate-800 active:scale-95 border border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
               >
@@ -193,6 +194,7 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
                 />
               </div>
               <button
+                type="button"
                 onClick={() => goDay(1)}
                 disabled={isToday}
                 className="w-9 h-9 bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed border border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
@@ -201,8 +203,9 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
               </button>
               {!isToday && (
                 <button
+                  type="button"
                   onClick={() => setSelectedDate(todayStr)}
-                  className="px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 font-black text-[10px] rounded-xl uppercase transition-all active:scale-95"
+                  className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 font-black text-[10px] rounded-xl uppercase transition-all active:scale-95 min-h-[44px] sm:min-h-0"
                 >
                   Bugun
                 </button>
@@ -251,7 +254,7 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
             </div>
 
             {/* Tezkor oraliqlar */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 xs:grid-cols-4 gap-2">
               {[
                 { label: '7 kun',  days: 7  },
                 { label: '14 kun', days: 14 },
@@ -328,12 +331,12 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
       </div>
 
       {/* ── PIE CHART ── */}
-      <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl">
+      <div className="bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl">
         <h3 className="font-black text-slate-300 uppercase tracking-wider text-[10px] mb-4 text-center">
           {rangeTitle} Davomat Statistikasi
         </h3>
         <div className="flex flex-col sm:flex-row items-center gap-5">
-          <div className="h-[180px] w-full sm:w-[180px] shrink-0 relative">
+          <div className="h-[min(200px,50vw)] min-h-[160px] sm:h-[180px] w-full max-w-[220px] mx-auto sm:mx-0 sm:w-[180px] shrink-0 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -461,11 +464,11 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
 
 /* ── Yordamchilar ── */
 const StatCard = ({ icon, label, value, trend, color }) => (
-  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-lg active:scale-[0.98] transition-all">
-    <div className={`w-9 h-9 ${color} rounded-xl flex items-center justify-center mb-3`}>{icon}</div>
-    <div>
-      <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">{label}</span>
-      <h4 className="text-xl font-black text-white leading-tight mt-0.5 truncate">{value}</h4>
+  <div className="bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-lg active:scale-[0.98] transition-all min-w-0">
+    <div className={`w-8 h-8 sm:w-9 sm:h-9 ${color} rounded-xl flex items-center justify-center mb-2 sm:mb-3`}>{icon}</div>
+    <div className="min-w-0">
+      <span className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-widest block leading-tight">{label}</span>
+      <h4 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight mt-0.5 break-words line-clamp-2">{value}</h4>
       <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-tighter mt-0.5">{trend}</p>
     </div>
   </div>

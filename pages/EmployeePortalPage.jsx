@@ -149,9 +149,12 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
     ? Math.min(Math.round((balanceInfo.totalTaken / balanceInfo.totalEarned) * 100), 100) : 0;
 
   const css = `
-    .ep-wrap{width:100%;max-width:480px;margin:0 auto;padding:12px 12px 100px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;}
-    @media(max-width:360px){.ep-wrap{padding:8px 8px 90px;gap:8px;}.ep-amount{font-size:1.4rem!important;}.ep-statval{font-size:0.8rem!important;}.ep-empname{font-size:0.9rem!important;}.ep-padcard{padding:12px!important;}}
-    @media(min-width:481px){.ep-wrap{max-width:500px;padding:20px 16px 80px;gap:14px;}}
+    .ep-wrap{width:100%;max-width:480px;margin:0 auto;padding:12px 12px max(100px, calc(80px + env(safe-area-inset-bottom, 0px)));box-sizing:border-box;display:flex;flex-direction:column;gap:12px;}
+    @media(max-width:360px){.ep-wrap{padding:8px 8px max(90px, calc(72px + env(safe-area-inset-bottom, 0px)));gap:8px;}.ep-amount{font-size:1.35rem!important;}.ep-statval{font-size:0.8rem!important;}.ep-empname{font-size:0.88rem!important;}.ep-padcard{padding:12px!important;}}
+    @media(max-width:320px){.ep-wrap{padding-left:max(6px, env(safe-area-inset-left, 0px));padding-right:max(6px, env(safe-area-inset-right, 0px));}}
+    @media(min-width:361px) and (max-width:480px){.ep-wrap{padding-left:max(10px, env(safe-area-inset-left, 0px));padding-right:max(10px, env(safe-area-inset-right, 0px));}}
+    @media(min-width:481px){.ep-wrap{max-width:500px;padding:20px 16px max(80px, calc(64px + env(safe-area-inset-bottom, 0px)));gap:14px;}}
+    @media(max-height:520px) and (orientation:landscape){.ep-wrap{padding-bottom:max(1rem, env(safe-area-inset-bottom, 0px));}.ep-list{max-height:min(40vh, 280px);}}
     .ep-list{max-height:400px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .ep-list::-webkit-scrollbar{width:3px;} .ep-list::-webkit-scrollbar-thumb{background:#334155;border-radius:10px;}
     .bm-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;}
