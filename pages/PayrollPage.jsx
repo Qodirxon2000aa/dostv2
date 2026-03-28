@@ -256,7 +256,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   return (
     <div className="space-y-4 pb-10">
       {/* TAB BAR */}
-      <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-xl gap-1">
+      <div className="flex overflow-x-auto no-scrollbar bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-xl gap-1">
         <TabBtn active={activeTab === 'salary'} onClick={() => setActiveTab('salary')} icon={<Banknote size={14}/>} label="Oylik" />
         <TabBtn active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<CheckCircle size={14}/>} label="Davomat" badge={pendingAttendance.length} />
         <TabBtn active={activeTab === 'manual'} onClick={() => setActiveTab('manual')} icon={<ClipboardList size={14}/>} label="Davomat+" accent />
