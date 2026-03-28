@@ -2,13 +2,14 @@ import React, { useMemo, useState } from 'react';
 import {
   CheckCircle2, BadgeDollarSign, Wallet,
   Building2, ChevronDown, Clock, X, TrendingUp,
-  CalendarDays, BarChart3, Banknote, Info, AlertTriangle
+  CalendarDays, BarChart3, Banknote, Info, AlertTriangle, Gift,
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { bonusIsActive } from './payroll/payrollBonusUtils';
 
 const MONTH_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
 
-const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines = [], onRefresh }) => {
+const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines = [], bonuses = [], onRefresh }) => {
   const [loading, setLoading]                   = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState('');
   const [activeTab, setActiveTab]               = useState('history');
@@ -54,15 +55,34 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
     myActiveFines.reduce((s, f) => s + (Number(f.amount) || 0), 0),
   [myActiveFines]);
 
-  // ✅ balanceInfo — jarimani hisobga oladi
+  const myBonuses = useMemo(() => {
+    if (!targetId) return [];
+    return (bonuses || []).filter(b =>
+      String(b.employeeId?._id || b.employeeId) === String(targetId)
+    );
+  }, [bonuses, targetId]);
+
+  const myActiveBonuses = useMemo(() =>
+    myBonuses.filter(b => bonusIsActive(b)),
+  [myBonuses]);
+
+  const totalBonuses = useMemo(() =>
+    myActiveBonuses.reduce((s, b) => s + (Number(b.amount) || 0), 0),
+  [myActiveBonuses]);
+
+  const cancelledBonusesCount = useMemo(() =>
+    myBonuses.filter(b => !bonusIsActive(b)).length,
+  [myBonuses]);
+
+  // ✅ balanceInfo — jarima ayiriladi, bonus qo‘shiladi (Payroll bilan bir xil)
   const balanceInfo = useMemo(() => {
     const dailyRate   = Number(employeeData?.salaryRate) || 0;
     const workedDays  = myAttendance.filter(a => a.status === 'PRESENT').length;
     const totalEarned = workedDays * dailyRate;
     const totalTaken  = approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
-    const remaining   = totalEarned - totalTaken - totalFines; // ✅ jarima ayirildi
-    return { dailyRate, workedDays, totalEarned, totalTaken, totalFines, remaining };
-  }, [myAttendance, approvedPayroll, employeeData, totalFines]);
+    const remaining   = totalEarned - totalTaken - totalFines + totalBonuses;
+    return { dailyRate, workedDays, totalEarned, totalTaken, totalFines, totalBonuses, remaining };
+  }, [myAttendance, approvedPayroll, employeeData, totalFines, totalBonuses]);
 
   const paymentsByObject = useMemo(() => {
     const map = {};
@@ -137,7 +157,7 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
     .bm-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .bm-scroll::-webkit-scrollbar{width:3px;} .bm-scroll::-webkit-scrollbar-thumb{background:#334155;border-radius:10px;}
     .olingan-tap{cursor:pointer;transition:all .15s;} .olingan-tap:active{transform:scale(0.95);opacity:0.8;}
-    .fine-row{transition:all .15s;}
+    .fine-row,.bonus-row{transition:all .15s;}
   `;
 
   return (
@@ -200,6 +220,21 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
           </div>
         )}
 
+        {totalBonuses > 0 && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+              <Gift className="text-emerald-400" size={18}/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-emerald-400 font-black text-xs uppercase tracking-wide">Aktiv bonuslar</p>
+              <p className="text-emerald-300 font-black text-lg italic leading-tight">
+                +{totalBonuses.toLocaleString()} <span className="text-xs text-emerald-500 not-italic">UZS</span>
+              </p>
+              <p className="text-emerald-500/70 font-bold text-[8px] mt-0.5">{myActiveBonuses.length} ta bonus balansga qo&apos;shildi</p>
+            </div>
+          </div>
+        )}
+
         {/* 2. BALANS KARTASI */}
         <div className="ep-padcard bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 rounded-2xl border border-yellow-500/20 shadow-xl">
           <div className="flex items-start justify-between gap-2 mb-3">
@@ -222,7 +257,7 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
             </div>
           </div>
 
-          {/* ✅ 4 ta karta: ish kunlari, hisoblangan, olingan, jarima */}
+          {/* Ish kunlari, hisoblangan, olingan, jarima + bonus qatori */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="bg-slate-900/60 rounded-xl border border-slate-800 p-2 text-center">
               <p className="text-[7px] text-slate-500 font-black uppercase mb-1 leading-tight">Ish kunlari</p>
@@ -261,6 +296,22 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
                 <p className="text-[7px] text-slate-700 font-bold mt-0.5">UZS</p>
               </div>
             )}
+
+            {balanceInfo.totalBonuses > 0 ? (
+              <div className="col-span-2 bg-emerald-500/10 rounded-xl border border-emerald-500/30 p-2 text-center">
+                <p className="text-[7px] text-emerald-400 font-black uppercase mb-1 leading-tight flex items-center justify-center gap-1">
+                  <Gift size={9} /> Bonus
+                </p>
+                <p className="font-black text-sm leading-tight text-emerald-400">+{balanceInfo.totalBonuses.toLocaleString()}</p>
+                <p className="text-[7px] text-emerald-500/50 font-bold mt-0.5">UZS • balansga qo&apos;shilgan</p>
+              </div>
+            ) : (
+              <div className="col-span-2 bg-slate-900/60 rounded-xl border border-slate-800 p-2 text-center">
+                <p className="text-[7px] text-slate-500 font-black uppercase mb-1 leading-tight">Bonus</p>
+                <p className="font-black text-sm leading-tight text-slate-600">0</p>
+                <p className="text-[7px] text-slate-700 font-bold mt-0.5">UZS</p>
+              </div>
+            )}
           </div>
 
           {balanceInfo.totalEarned > 0 && (
@@ -274,23 +325,31 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
         </div>
 
         {/* 3. TABS */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
+        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 overflow-x-auto">
           {[
             { key:'history', label:"To'lovlar",  icon:<BadgeDollarSign size={13}/> },
             { key:'objects', label:'Obyektlar',  icon:<Building2 size={13}/> },
             { key:'days',    label:'Davomat',    icon:<CheckCircle2 size={13}/> },
-            { key:'fines',   label:'Jarimalar',  icon:<AlertTriangle size={13}/>, badge: myActiveFines.length },
+            { key:'fines',   label:'Jarimalar',  icon:<AlertTriangle size={13}/>, badge: myActiveFines.length, accent: 'fines' },
+            { key:'bonuses', label:'Bonuslar',   icon:<Gift size={13}/>, badge: myActiveBonuses.length, accent: 'bonuses' },
           ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-lg font-black uppercase transition-all active:scale-95 relative ${
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
+              className={`shrink-0 flex-1 min-w-[3.25rem] flex items-center justify-center gap-0.5 py-2 px-0.5 rounded-lg font-black uppercase transition-all active:scale-95 relative ${
                 activeTab === tab.key
-                  ? tab.key === 'fines' ? 'bg-rose-600 text-white' : 'bg-yellow-500 text-slate-950'
-                  : tab.key === 'fines' && myActiveFines.length > 0 ? 'text-rose-400 hover:bg-rose-500/10 border border-rose-500/20'
+                  ? tab.accent === 'fines' ? 'bg-rose-600 text-white'
+                    : tab.accent === 'bonuses' ? 'bg-emerald-600 text-white'
+                    : 'bg-yellow-500 text-slate-950'
+                  : tab.accent === 'fines' && myActiveFines.length > 0 ? 'text-rose-400 hover:bg-rose-500/10 border border-rose-500/20'
+                  : tab.accent === 'bonuses' && myActiveBonuses.length > 0 ? 'text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20'
                   : 'text-slate-500 hover:text-white hover:bg-slate-900'
-              }`} style={{fontSize:9}}>
-              {tab.icon} {tab.label}
+              }`} style={{fontSize:8}}>
+              {tab.icon}<span className="truncate max-w-[4.2rem] sm:max-w-none">{tab.label}</span>
               {tab.badge > 0 && (
-                <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full text-[7px] font-black flex items-center justify-center ${activeTab===tab.key?'bg-white/30 text-white':'bg-rose-500 text-white'}`}>
+                <span className={`absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded-full text-[7px] font-black flex items-center justify-center ${
+                  activeTab === tab.key
+                    ? 'bg-white/30 text-white'
+                    : tab.accent === 'bonuses' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                }`}>
                   {tab.badge}
                 </span>
               )}
@@ -536,6 +595,87 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
             </div>
           </div>
         )}
+
+        {/* 4E. BONUSLAR TAB */}
+        {activeTab === 'bonuses' && (
+          <div className="space-y-3">
+            <div className={`rounded-2xl border p-4 ${totalBonuses > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900/40 border-slate-800'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-widest mb-1 text-slate-500">Aktiv bonuslar jami</p>
+                  <p className={`font-black text-2xl italic ${totalBonuses > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {totalBonuses > 0 ? `+${totalBonuses.toLocaleString()}` : '0'}
+                    <span className="text-sm not-italic ml-1 text-slate-500">UZS</span>
+                  </p>
+                  <p className="text-[8px] font-bold mt-1 text-slate-500">
+                    {myActiveBonuses.length} ta aktiv • {cancelledBonusesCount} ta bekor qilingan
+                  </p>
+                </div>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${totalBonuses > 0 ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-800 border-slate-700'}`}>
+                  <Gift className={totalBonuses > 0 ? 'text-emerald-400' : 'text-slate-600'} size={24}/>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
+                <h3 className="text-white font-black uppercase text-xs tracking-widest italic">Bonuslar tarixi</h3>
+                <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg">{myBonuses.length} ta</span>
+              </div>
+              <div className="ep-list divide-y divide-slate-900">
+                {[...myBonuses].reverse().map(b => {
+                  const active = bonusIsActive(b);
+                  const reason = b.reason || b.comment || '';
+                  const bDate = b.date || (b.createdAt ? new Date(b.createdAt).toLocaleDateString('uz-UZ') : null);
+                  return (
+                    <div key={b._id || b.id} className="bonus-row flex items-center justify-between px-4 py-3.5 hover:bg-slate-900/30">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`shrink-0 rounded-xl flex items-center justify-center border ${
+                          active
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                            : 'bg-slate-800 border-slate-700 text-slate-500'
+                        }`} style={{ width: 34, height: 34 }}>
+                          <Gift size={14} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                            <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                              active
+                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                : 'text-slate-500 bg-slate-800 border-slate-700 line-through'
+                            }`}>
+                              {active ? '● Aktiv' : '✕ Bekor'}
+                            </span>
+                            {bDate && (
+                              <span className="text-[7px] text-slate-600 font-bold">{bDate}</span>
+                            )}
+                          </div>
+                          {reason && (
+                            <p className="text-slate-400 text-[9px] font-bold truncate">{reason}</p>
+                          )}
+                          <p className="text-slate-600 text-[7px] font-bold">
+                            {b.createdBy || b.appliedBy || 'admin'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className={`font-black text-sm italic ${active ? 'text-emerald-400' : 'text-slate-600 line-through'}`}>
+                          +{(Number(b.amount) || 0).toLocaleString()}
+                        </p>
+                        <p className="text-[7px] text-slate-600">UZS</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {myBonuses.length === 0 && (
+                  <div className="py-14 text-center">
+                    <p className="text-slate-700 font-black uppercase text-xs">Bonuslar hozircha yo&apos;q</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══ BALANS TO'LIQ MODAL ══ */}
@@ -572,6 +712,8 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
                   {label:'Kunlik stavka', val:balanceInfo.dailyRate.toLocaleString(),    unit:'UZS', color:'text-blue-400',    border:'border-blue-500/20'},
                   {label:'Hisoblangan',   val:balanceInfo.totalEarned.toLocaleString(),  unit:'UZS', color:'text-emerald-400', border:'border-emerald-500/20'},
                   {label:'Olingan',       val:balanceInfo.totalTaken.toLocaleString(),   unit:'UZS', color:'text-rose-400',    border:'border-rose-500/20'},
+                  {label:'Jarima (aktiv)', val: balanceInfo.totalFines > 0 ? `−${balanceInfo.totalFines.toLocaleString()}` : '0', unit:'UZS', color: balanceInfo.totalFines > 0 ? 'text-rose-400' : 'text-slate-600', border:'border-rose-500/20'},
+                  {label:'Bonus (aktiv)', val: balanceInfo.totalBonuses > 0 ? `+${balanceInfo.totalBonuses.toLocaleString()}` : '0', unit:'UZS', color: balanceInfo.totalBonuses > 0 ? 'text-emerald-400' : 'text-slate-600', border:'border-emerald-500/20'},
                 ].map(s => (
                   <div key={s.label} className={`bg-slate-950 rounded-2xl border ${s.border} p-3 text-center`}>
                     <p className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">{s.label}</p>
@@ -605,6 +747,33 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
                 </div>
               )}
 
+              {balanceInfo.totalBonuses > 0 && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Gift className="text-emerald-400" size={14}/>
+                      <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">Aktiv bonuslar</p>
+                    </div>
+                    <span className="text-emerald-400 font-black text-sm italic">+{balanceInfo.totalBonuses.toLocaleString()} UZS</span>
+                  </div>
+                  <div className="space-y-2">
+                    {myActiveBonuses.map(b => (
+                      <div key={b._id || b.id} className="flex justify-between items-center bg-emerald-500/5 rounded-xl border border-emerald-500/10 px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-emerald-300 font-black text-xs">{b.reason || b.comment || "Sabab ko'rsatilmagan"}</p>
+                          {(b.date || b.createdAt) && (
+                            <p className="text-emerald-500/60 text-[7px] font-bold">
+                              {b.date || (b.createdAt ? new Date(b.createdAt).toLocaleDateString('uz-UZ') : '')}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-emerald-400 font-black text-sm shrink-0 ml-3">+{(Number(b.amount) || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Qoldiq */}
               <div className={`rounded-2xl border p-4 ${balanceInfo.remaining < 0 ? 'bg-rose-500/5 border-rose-500/20' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
                 <div className="flex items-center justify-between">
@@ -614,9 +783,11 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
                       {balanceInfo.remaining.toLocaleString()}
                       <span className="text-sm text-slate-500 not-italic ml-1">UZS</span>
                     </p>
-                    {balanceInfo.totalFines > 0 && (
-                      <p className="text-[8px] text-slate-500 font-bold mt-1">
-                        = {balanceInfo.totalEarned.toLocaleString()} − {balanceInfo.totalTaken.toLocaleString()} − {balanceInfo.totalFines.toLocaleString()} (jarima)
+                    {(balanceInfo.totalFines > 0 || balanceInfo.totalBonuses > 0) && (
+                      <p className="text-[8px] text-slate-500 font-bold mt-1 leading-relaxed">
+                        = {balanceInfo.totalEarned.toLocaleString()} − {balanceInfo.totalTaken.toLocaleString()}
+                        {balanceInfo.totalFines > 0 && <> − {balanceInfo.totalFines.toLocaleString()} (jarima)</>}
+                        {balanceInfo.totalBonuses > 0 && <> + {balanceInfo.totalBonuses.toLocaleString()} (bonus)</>}
                       </p>
                     )}
                   </div>

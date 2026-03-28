@@ -279,6 +279,7 @@ const App = () => {
                               payroll={payroll} 
                               objects={objects}
                               fines={fines}
+                              bonuses={bonuses}
                               onRefresh={loadData} 
                             />
                           )
@@ -394,6 +395,7 @@ const App = () => {
                             payroll={payroll} 
                             objects={objects}
                             fines={fines}
+                            bonuses={bonuses}
                             onRefresh={loadData} 
                           />
                         }
