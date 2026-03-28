@@ -18,17 +18,17 @@ import {
 
 import { api } from './utils/api';
 
-import Dashboard      from './components/Dashboard';
-import EmployeeList   from './components/EmployeeList';
-import Attendance     from './components/Attendance';
-import Payroll        from './components/Payroll';
-import Login          from './components/Login';
-import EmployeePortal from './components/EmployeePortal';
-import ObjectsManager from './components/ObjectManager';
-import Excel          from './components/Exel';
-import Fines          from './components/Fine';
-import Warehouse      from './components/Warehouse';
-import Bonuses        from './components/Bonuses';
+import DashboardPage     from './pages/DashboardPage';
+import EmployeesPage     from './pages/EmployeesPage';
+import AttendancePage    from './pages/AttendancePage';
+import PayrollPage       from './pages/PayrollPage';
+import LoginPage         from './pages/LoginPage';
+import EmployeePortalPage from './pages/EmployeePortalPage';
+import ObjectsPage       from './pages/ObjectsPage';
+import ExcelPage         from './pages/ExcelPage';
+import FinesPage         from './pages/FinesPage';
+import WarehousePage     from './pages/WarehousePage';
+import BonusesPage       from './pages/BonusesPage';
 
 const App = () => {
   // Current User holati
@@ -148,7 +148,7 @@ const App = () => {
         {/* Login sahifa */}
         <Route
           path="/login"
-          element={currentUser ? <Navigate to="/" /> : <Login onLogin={handleLogin} />}
+          element={currentUser ? <Navigate to="/" /> : <LoginPage onLogin={handleLogin} />}
         />
 
         {/* Asosiy app */}
@@ -265,14 +265,14 @@ const App = () => {
                         index
                         element={
                           isAdminOrSuper ? (
-                            <Dashboard
+                            <DashboardPage
                               employees={employees}
                               attendance={attendance}
                               payroll={payroll}
                               logs={logs}
                             />
                           ) : (
-                            <EmployeePortal 
+                            <EmployeePortalPage 
                               user={currentUser} 
                               employees={employees} 
                               attendance={attendance} 
@@ -289,14 +289,14 @@ const App = () => {
                       <Route
                         path="/employees"
                         element={isAdminOrSuper ? (
-                          <EmployeeList employees={employees} payroll={payroll} onLog={addLog} onRefresh={loadData} />
+                          <EmployeesPage employees={employees} payroll={payroll} onLog={addLog} onRefresh={loadData} />
                         ) : <Navigate to="/" />}
                       />
 
                       <Route
                         path="/attendance"
                         element={isAdminOrSuper ? (
-                          <Attendance 
+                          <AttendancePage 
                             employees={employees} 
                             attendance={attendance} 
                             userRole={currentUser.role} 
@@ -309,7 +309,7 @@ const App = () => {
                       <Route
                         path="/payroll"
                         element={isAdminOrSuper ? (
-                          <Payroll 
+                          <PayrollPage 
                             employees={employees} 
                             attendance={attendance} 
                             payroll={payroll} 
@@ -326,7 +326,7 @@ const App = () => {
                       <Route
                         path="/fines"
                         element={isAdminOrSuper ? (
-                          <Fines 
+                          <FinesPage 
                             employees={employees} 
                             fines={fines} 
                             userRole={currentUser.role} 
@@ -339,7 +339,7 @@ const App = () => {
                       <Route
                         path="/excel"
                         element={isAdminOrSuper ? (
-                          <Excel 
+                          <ExcelPage 
                             employees={employees} 
                             attendance={attendance} 
                             payroll={payroll} 
@@ -351,7 +351,7 @@ const App = () => {
                       <Route
                         path="/objects"
                         element={isSuperAdmin ? (
-                          <ObjectsManager 
+                          <ObjectsPage 
                             objects={objects} 
                             payroll={payroll} 
                             userRole={currentUser.role} 
@@ -363,7 +363,7 @@ const App = () => {
                       <Route
                         path="/warehouse"
                         element={isAdminOrSuper ? (
-                          <Warehouse 
+                          <WarehousePage 
                             objects={objects} 
                             payroll={payroll} 
                             userRole={currentUser.role} 
@@ -375,7 +375,7 @@ const App = () => {
                       <Route
                         path="/bonuses"
                         element={isAdminOrSuper ? (
-                          <Bonuses 
+                          <BonusesPage 
                             employees={employees}
                             bonuses={bonuses}
                             userRole={currentUser.role} 
@@ -388,7 +388,7 @@ const App = () => {
                       <Route
                         path="/my-portal"
                         element={
-                          <EmployeePortal 
+                          <EmployeePortalPage 
                             user={currentUser} 
                             employees={employees} 
                             attendance={attendance} 
