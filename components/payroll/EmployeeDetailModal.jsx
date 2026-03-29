@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
-  X, Calendar, TrendingUp, Hash, Clock, Layers, BarChart3, Gift,
+  X, Calendar, TrendingUp, Hash, Clock, Layers, BarChart3, Gift, Pencil, Ban,
 } from 'lucide-react';
 import { MONTH_LABELS } from './constants';
+import { payrollDateLabel } from './payrollBonusUtils';
 
-const EmployeeDetailModal = ({ empStats, onClose }) => {
+const EmployeeDetailModal = ({ empStats, onClose, onEditPayment, onCancelPayment }) => {
   if (!empStats) return null;
   const { emp, totalTaken, totalEarned, totalFines, totalBonuses = 0, remaining, workedDays, payments } = empStats;
   const allDates = payments.map(p => p.date).filter(Boolean).sort();
@@ -381,18 +382,38 @@ const EmployeeDetailModal = ({ empStats, onClose }) => {
                     className="flex items-center justify-between px-4 py-3 hover:bg-slate-900/30 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-black text-xs">{p.date || p.month}</span>
-                        {p.objectName && (
-                          <span className="text-[7px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded">
-                            {p.objectName}
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-[8px] text-slate-500 font-bold leading-snug">{payrollDateLabel(p)}</p>
+                      {p.objectName && (
+                        <span className="text-[7px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded inline-block mt-1">
+                          {p.objectName}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-yellow-500 font-black text-sm shrink-0 ml-3">
-                      {(Number(p.calculatedSalary) || 0).toLocaleString()} UZS
-                    </span>
+                    <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                      <span className="text-yellow-500 font-black text-sm">
+                        {(Number(p.calculatedSalary) || 0).toLocaleString()} UZS
+                      </span>
+                      {typeof onEditPayment === 'function' && p.status === 'APPROVED' && (
+                        <button
+                          type="button"
+                          title="Tahrirlash"
+                          onClick={() => onEditPayment(p)}
+                          className="p-1.5 text-slate-600 hover:text-blue-400 rounded-lg hover:bg-blue-500/10 transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {typeof onCancelPayment === 'function' && p.status === 'APPROVED' && (
+                        <button
+                          type="button"
+                          title="Bekor qilish"
+                          onClick={() => onCancelPayment(p)}
+                          className="p-1.5 text-slate-600 hover:text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
+                        >
+                          <Ban size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,5 +1,8 @@
-// api.js — Vite: .env da VITE_API_URL=http://localhost:5000/api
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://nodirkhanov.uz/api';
+// api.js — Vite: .env da VITE_API_URL=http://localhost:5000/api (oxirida bo'sh joy bo'lmasin)
+const BASE_URL = (() => {
+  const fromEnv = String(import.meta.env.VITE_API_URL ?? '').trim();
+  return fromEnv || 'https://nodirkhanov.uz/api';
+})();
 
 const getToken = () => {
   try {
@@ -62,7 +65,9 @@ export const api = {
     return request('GET', `/payroll${q ? '?' + q : ''}`);
   },
   createPayroll:  (body) => request('POST',   '/payroll', body),
+  updatePayroll:  (id, body) => request('PUT', `/payroll/${id}`, body),
   approvePayroll: (id)   => request('PATCH',  `/payroll/${id}/approve`),
+  cancelPayroll:  (id)   => request('PATCH',  `/payroll/${id}/cancel`),
   deletePayroll:  (id)   => request('DELETE', `/payroll/${id}`),
 
   // ── Objects ───────────────────────────────────────────────────

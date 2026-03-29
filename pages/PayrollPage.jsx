@@ -4,11 +4,11 @@ import {
   ChevronDown, UserCheck, X, Award, Building2, Users,
   BarChart3, ClipboardList, Plus, TrendingUp, Hash,
   Clock, Layers, ChevronRight, Calculator, AlertTriangle,
-  Wallet, Gift,
+  Wallet, Gift, Pencil, Ban,
 } from 'lucide-react';
 import { api } from '../utils/api';
 import { MONTH_LABELS, MONTH_SHORT } from '../components/payroll/constants';
-import { sumActiveBonusesForEmployee } from '../components/payroll/payrollBonusUtils';
+import { sumActiveBonusesForEmployee, payrollDateLabel } from '../components/payroll/payrollBonusUtils';
 import UmumiyHisobModal from '../components/payroll/UmumiyHisobModal';
 import EmployeeDetailModal from '../components/payroll/EmployeeDetailModal';
 import { TabBtn, Empty } from '../components/payroll/PayrollChrome';
@@ -34,8 +34,19 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualLoading, setManualLoading] = useState(false);
   const [manualMsg, setManualMsg] = useState(null);
+  const [editPayrollRecord, setEditPayrollRecord] = useState(null);
+  const [editPayrollAmount, setEditPayrollAmount] = useState('');
+  const [editPaySaving, setEditPaySaving] = useState(false);
   const pendingAttendance = attendance.filter(a => a.status === 'PENDING');
   const approvedPayroll = useMemo(() => payroll.filter(p => p.status === 'APPROVED'), [payroll]);
+  const historyPayroll = useMemo(
+    () => payroll.filter(p => p.status === 'APPROVED' || p.status === 'CANCELLED'),
+    [payroll]
+  );
+  const cancelledCount = useMemo(
+    () => payroll.filter(p => p.status === 'CANCELLED').length,
+    [payroll]
+  );
   const currentMonthPayroll = useMemo(() =>
     approvedPayroll.filter(p => p.month === selectedMonth),
   [approvedPayroll, selectedMonth]);
@@ -106,7 +117,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   const topEmployee = employeeStats[0] || null;
   const topObject = objectStats[0] || null;
   const filteredHistoryByDate = useMemo(() => {
-    const filtered = approvedPayroll.filter(p => {
+    const filtered = historyPayroll.filter(p => {
       if (!selectedEmployee) return true;
       return String(p.employeeId?._id || p.employeeId) === String(selectedEmployee);
     });
@@ -117,7 +128,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
       grouped[key].push(p);
     });
     return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
-  }, [approvedPayroll, selectedEmployee]);
+  }, [historyPayroll, selectedEmployee]);
   const selectedEmpStats = useMemo(() => {
     if (!selectedEmployee) return null;
     return employeeStats.find(s => String(s.empId) === String(selectedEmployee)) || null;
@@ -210,6 +221,47 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
     if (!window.confirm("O'chirilsinmi?")) return;
     try { await api.deletePayroll(id); onLog("To'lov o'chirildi."); onRefresh(); }
     catch { alert("Xatolik!"); }
+  };
+
+  const openEditPayroll = (rec) => {
+    if (!rec || rec.status !== 'APPROVED') {
+      alert("Faqat tasdiqlangan to'lovni tahrirlash mumkin.");
+      return;
+    }
+    setEditPayrollRecord(rec);
+    setEditPayrollAmount(String(Number(rec.calculatedSalary ?? rec.amount) || ''));
+  };
+
+  const handleCancelPayrollPayment = async (id, empName) => {
+    if (!window.confirm(`${empName || "To'lov"} bekor qilinsinmi? Summasi hisob-kitobda inobatga olinmaydi (yozuv saqlanadi).`)) return;
+    try {
+      await api.cancelPayroll(id);
+      onLog(`To'lov bekor qilindi: ${empName || ''}`);
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Xatolik');
+    }
+  };
+  const closeEditPayroll = () => {
+    setEditPayrollRecord(null);
+    setEditPayrollAmount('');
+  };
+  const handleSaveEditPayroll = async () => {
+    if (!editPayrollRecord) return;
+    const n = Number(editPayrollAmount);
+    if (editPayrollAmount === '' || Number.isNaN(n) || n < 0) return alert("To'g'ri summani kiriting (0 yoki undan katta).");
+    setEditPaySaving(true);
+    try {
+      const id = editPayrollRecord._id || editPayrollRecord.id;
+      await api.updatePayroll(id, { calculatedSalary: n, amount: n });
+      onLog(`To'lov tahrirlandi: ${editPayrollRecord.employeeName || ''} — ${n.toLocaleString()} UZS`);
+      closeEditPayroll();
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Xatolik');
+    } finally {
+      setEditPaySaving(false);
+    }
   };
   const handleRejectAttendance = async (id) => {
     if (!window.confirm("O'chirilsinmi?")) return;
@@ -687,14 +739,16 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                         <div key={id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-900/20 transition-colors">
                           <div className="min-w-0 flex-1">
                             <p className="text-white font-black italic uppercase text-sm truncate">{rec.employeeName}</p>
+                            <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">{payrollDateLabel(rec)}</p>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[9px] text-slate-500">{rec.date || rec.month}</span>
                               {rec.objectName && <span className="text-[9px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded">{rec.objectName}</span>}
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 ml-3 shrink-0">
+                          <div className="flex items-center gap-1 ml-3 shrink-0">
                             <p className="text-base font-black text-emerald-500 italic">{(Number(rec.calculatedSalary)||0).toLocaleString()}<span className="text-[9px] text-slate-600 ml-1 not-italic">UZS</span></p>
-                            <button onClick={() => handleRejectPayroll(id)} className="text-slate-700 hover:text-rose-500 active:scale-95 transition-colors"><Trash2 size={16}/></button>
+                            <button type="button" title="Tahrirlash" onClick={() => openEditPayroll(rec)} className="p-1.5 text-slate-600 hover:text-blue-400 active:scale-95 transition-colors rounded-lg hover:bg-blue-500/10"><Pencil size={15}/></button>
+                            <button type="button" title="Bekor qilish" onClick={() => handleCancelPayrollPayment(id, rec.employeeName)} className="p-1.5 text-slate-600 hover:text-amber-400 active:scale-95 rounded-lg hover:bg-amber-500/10"><Ban size={15}/></button>
+                            <button type="button" title="Butunlay o'chirish" onClick={() => handleRejectPayroll(id)} className="p-1.5 text-slate-700 hover:text-rose-500 active:scale-95 transition-colors rounded-lg hover:bg-rose-500/10"><Trash2 size={16}/></button>
                           </div>
                         </div>
                       );
@@ -770,12 +824,22 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                           <div className="mt-3 pt-3 border-t border-slate-800">
                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-2">So'nggi to'lovlar</p>
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                              {[...payments].reverse().slice(0,10).map(p => (
-                                <div key={p._id||p.id} className="flex justify-between items-center py-1.5 px-2 rounded-lg hover:bg-slate-900/30">
-                                  <div className="min-w-0"><p className="text-white font-black text-xs truncate">{p.employeeName}</p><p className="text-slate-600 text-[8px] font-bold">{p.date}</p></div>
-                                  <p className="text-yellow-500 font-black text-xs shrink-0 ml-2">{(Number(p.calculatedSalary)||0).toLocaleString()} UZS</p>
+                              {[...payments].reverse().slice(0,10).map(p => {
+                                const pid = p._id || p.id;
+                                return (
+                                <div key={pid} className="flex justify-between items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-slate-900/30">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-white font-black text-xs truncate">{p.employeeName}</p>
+                                    <p className="text-slate-500 text-[7px] font-bold leading-snug mt-0.5">{payrollDateLabel(p)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <p className="text-yellow-500 font-black text-xs">{(Number(p.calculatedSalary)||0).toLocaleString()} UZS</p>
+                                    <button type="button" title="Tahrirlash" onClick={() => openEditPayroll(p)} className="p-1 text-slate-600 hover:text-blue-400 rounded-md hover:bg-blue-500/10"><Pencil size={12}/></button>
+                                    <button type="button" title="Bekor" onClick={() => handleCancelPayrollPayment(pid, p.employeeName)} className="p-1 text-slate-600 hover:text-amber-400 rounded-md hover:bg-amber-500/10"><Ban size={12}/></button>
+                                  </div>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
@@ -861,7 +925,10 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     <DollarSign className="text-blue-500 shrink-0" size={18}/>
                     <div>
                       <h2 className="text-white font-black italic uppercase text-sm">Barcha Tarix</h2>
-                      <p className="text-slate-500 text-[9px] font-black uppercase">{approvedPayroll.length} ta</p>
+                      <p className="text-slate-500 text-[9px] font-black uppercase">
+                        {approvedPayroll.length} ta hisoblangan
+                        {cancelledCount > 0 && ` · ${cancelledCount} bekor`}
+                      </p>
                     </div>
                   </div>
                   <p className="text-yellow-500 font-black text-sm italic">{allTimeTotal.toLocaleString()} <span className="text-[9px] text-slate-500">UZS</span></p>
@@ -907,7 +974,9 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                 {filteredHistoryByDate.length === 0
                   ? <div className="py-16 text-center text-slate-700 font-black uppercase text-xs">To'lovlar tarixi yo'q</div>
                   : filteredHistoryByDate.map(([date, records]) => {
-                    const dayTotal = records.reduce((s,r) => s+(Number(r.calculatedSalary)||0),0);
+                    const activeRecs = records.filter(r => r.status === 'APPROVED');
+                    const dayTotal = activeRecs.reduce((s, r) => s + (Number(r.calculatedSalary) || 0), 0);
+                    const nCancel = records.filter(r => r.status === 'CANCELLED').length;
                     const isExpanded = expandedMonth === date;
                     return (
                       <div key={date} className="border border-slate-800 rounded-xl overflow-hidden">
@@ -917,13 +986,16 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                             <div className="w-8 h-8 shrink-0 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center"><Calendar className="text-blue-500" size={14}/></div>
                             <div className="text-left">
                               <p className="text-white font-black text-sm">{date}</p>
-                              <p className="text-slate-500 text-[9px] font-bold uppercase">{records.length} ta to'lov</p>
+                              <p className="text-slate-500 text-[9px] font-bold uppercase">
+                                {records.length} ta yozuv
+                                {nCancel > 0 && <span className="text-rose-400"> · {nCancel} bekor</span>}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
                               <p className="text-yellow-500 font-black text-base italic leading-tight">{dayTotal.toLocaleString()}</p>
-                              <p className="text-[8px] text-slate-600 font-bold uppercase">UZS</p>
+                              <p className="text-[8px] text-slate-600 font-bold uppercase">UZS (faol)</p>
                             </div>
                             <ChevronDown size={16} className={`text-slate-500 transition-transform duration-300 shrink-0 ${isExpanded?'rotate-180':''}`}/>
                           </div>
@@ -932,18 +1004,29 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                           <div className="divide-y divide-slate-900">
                             {records.map(rec => {
                               const id = rec._id||rec.id;
+                              const isCancelled = rec.status === 'CANCELLED';
                               return (
-                                <div key={id} className="flex items-center justify-between px-4 py-3 bg-slate-950/60 hover:bg-slate-900/20 transition-colors">
+                                <div key={id} className={`flex items-center justify-between px-4 py-3 bg-slate-950/60 hover:bg-slate-900/20 transition-colors ${isCancelled ? 'opacity-70' : ''}`}>
                                   <div className="flex items-center gap-3 min-w-0 flex-1">
                                     <div className="w-7 h-7 shrink-0 bg-slate-800 rounded-lg flex items-center justify-center text-yellow-500 font-black text-xs border border-slate-700">{rec.employeeName?.[0]||'?'}</div>
                                     <div className="min-w-0">
-                                      <p className="text-white font-black text-sm uppercase italic truncate">{rec.employeeName}</p>
+                                      <p className={`font-black text-sm uppercase italic truncate ${isCancelled ? 'text-slate-500 line-through' : 'text-white'}`}>{rec.employeeName}</p>
+                                      <p className="text-[8px] text-slate-500 mt-0.5 leading-snug break-words">{payrollDateLabel(rec)}</p>
+                                      {isCancelled && <span className="text-[8px] text-rose-400 font-black uppercase mt-0.5 inline-block">Bekor qilingan</span>}
                                       {rec.objectName && <span className="text-[8px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">{rec.objectName}</span>}
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-3 ml-2 shrink-0">
-                                    <p className="text-emerald-500 font-black text-sm">{(Number(rec.calculatedSalary)||0).toLocaleString()}<span className="text-[9px] text-slate-600 ml-1">UZS</span></p>
-                                    <button onClick={() => handleRejectPayroll(id)} className="text-slate-700 hover:text-rose-500 active:scale-95 transition-colors"><Trash2 size={15}/></button>
+                                  <div className="flex items-center gap-1 ml-2 shrink-0">
+                                    <p className={`font-black text-sm ${isCancelled ? 'text-slate-500 line-through' : 'text-emerald-500'}`}>
+                                      {(Number(rec.calculatedSalary)||0).toLocaleString()}<span className="text-[9px] text-slate-600 ml-1">UZS</span>
+                                    </p>
+                                    {!isCancelled && (
+                                      <>
+                                        <button type="button" title="Tahrirlash" onClick={() => openEditPayroll(rec)} className="p-1.5 text-slate-600 hover:text-blue-400 active:scale-95 rounded-lg hover:bg-blue-500/10"><Pencil size={14}/></button>
+                                        <button type="button" title="Bekor qilish" onClick={() => handleCancelPayrollPayment(id, rec.employeeName)} className="p-1.5 text-slate-600 hover:text-amber-400 active:scale-95 rounded-lg hover:bg-amber-500/10"><Ban size={14}/></button>
+                                      </>
+                                    )}
+                                    <button type="button" title="Butunlay o'chirish" onClick={() => handleRejectPayroll(id)} className="p-1.5 text-slate-700 hover:text-rose-500 active:scale-95 rounded-lg hover:bg-rose-500/10"><Trash2 size={15}/></button>
                                   </div>
                                 </div>
                               );
@@ -1064,9 +1147,60 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
           </div>
         </div>
       )}
+      {/* TO'LOVNI TAHIRLASH (xatolikni tuzatish) */}
+      {editPayrollRecord && (
+        <div className="fixed inset-0 z-[125] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/85">
+          <div className="bg-slate-900 border border-blue-500/25 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-md p-6 shadow-2xl max-h-[95vh] overflow-y-auto">
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-black text-white italic flex items-center gap-2">
+                  <Pencil className="text-blue-400" size={20} /> To&apos;lovni tahrirlash
+                </h3>
+                <p className="text-slate-500 text-[9px] font-black uppercase mt-1">{editPayrollRecord.employeeName}</p>
+                <p className="text-slate-600 text-[8px] mt-2 leading-relaxed">
+                  Faqat ushbu yozuv summasi o‘zgartiriladi. Boshqa operatsiyalar avtomatik qaytarilmaydi.
+                </p>
+              </div>
+              <button type="button" onClick={closeEditPayroll} className="w-9 h-9 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center shrink-0"><X className="text-slate-400" size={16}/></button>
+            </div>
+            <div className="space-y-2 text-[10px] text-slate-400 mb-4 font-bold leading-relaxed">
+              <p><span className="text-slate-600 uppercase font-black text-[8px] block mb-0.5">Sanalar</span>{payrollDateLabel(editPayrollRecord)}</p>
+              {editPayrollRecord.objectName && <p><span className="text-slate-600 uppercase font-black text-[8px]">Obyekt: </span><span className="text-blue-400">{editPayrollRecord.objectName}</span></p>}
+              <p><span className="text-slate-600 uppercase font-black text-[8px]">Tur: </span>{editPayrollRecord.type || '—'}</p>
+            </div>
+            <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest block mb-2">Yangi summa (UZS)</label>
+            <div className="relative mb-5">
+              <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={20}/>
+              <input
+                autoFocus
+                inputMode="numeric"
+                type="number"
+                min="0"
+                value={editPayrollAmount}
+                onChange={e => setEditPayrollAmount(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveEditPayroll()}
+                className="w-full pl-12 pr-4 py-4 bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-2xl text-2xl font-black text-white outline-none transition-all"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveEditPayroll}
+              disabled={editPaySaving}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] disabled:opacity-50 text-white font-black rounded-2xl transition-all uppercase tracking-widest text-sm"
+            >
+              {editPaySaving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        </div>
+      )}
       {/* XODIM DETAL MODALI */}
       {detailEmpStats && (
-        <EmployeeDetailModal empStats={detailEmpStats} onClose={() => setDetailEmpStats(null)}/>
+        <EmployeeDetailModal
+          empStats={detailEmpStats}
+          onClose={() => setDetailEmpStats(null)}
+          onEditPayment={openEditPayroll}
+          onCancelPayment={(rec) => handleCancelPayrollPayment(rec._id || rec.id, rec.employeeName)}
+        />
       )}
       {/* ✅ YANGI — UMUMIY HISOB MODALI */}
       {showUmumiyHisob && (
