@@ -46,11 +46,9 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
         .map(a => String(a.employeeId?._id || a.employeeId))
     );
 
-    /* Davomat % — single: bugungi; range: noyob xodimlar */
+    /* Davomat % — noyob kelgan xodimlar (duplicate yozuvlardan qochish) */
     const attendanceRate = activeEmployees > 0
-      ? mode === 'single'
-        ? Math.round((presentCount / activeEmployees) * 100)
-        : Math.round((presentEmpIds.size / activeEmployees) * 100)
+      ? Math.round((presentEmpIds.size / activeEmployees) * 100)
       : 0;
 
     /* Oylik — single: o'sha oy; range: oraliq oylar */
@@ -71,10 +69,11 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
       .filter(p => monthsInRange.includes(p.month) && p.status === 'APPROVED')
       .reduce((acc, p) => acc + (Number(p.calculatedSalary) || 0), 0);
 
-    /* Pie data */
+    /* Pie data — noyob kelgan xodimlar soni (Kelmagan bilan yig‘indi mos keladi) */
+    const uniquePresent = presentEmpIds.size;
     const statusData = [
-      { name: 'Kelgan',    value: presentCount,                                          color: '#10b981' },
-      { name: 'Kelmagan',  value: Math.max(0, activeEmployees - presentEmpIds.size),     color: '#f43f5e' },
+      { name: 'Kelgan',    value: uniquePresent,                                      color: '#10b981' },
+      { name: 'Kelmagan',  value: Math.max(0, activeEmployees - uniquePresent),         color: '#f43f5e' },
     ].filter(d => d.value > 0);
 
     /* Kun/oralig'i davomat jadvali */

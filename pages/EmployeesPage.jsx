@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Edit2, Trash2, X, UserPlus, Banknote, CheckCircle, Clock, Eye, EyeOff } from 'lucide-react';
+import { Search, Edit2, Trash2, X, UserPlus, Banknote, CheckCircle, XCircle, Clock, Eye, EyeOff } from 'lucide-react';
 import { api } from '../utils/api';
 
 const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
@@ -25,6 +25,20 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
     try {
       await api.approvePayroll(id);
       onLog(`Tasdiqlandi: ${empName}ga ${Number(amount).toLocaleString()} UZS to'landi`);
+      onRefresh();
+    } catch (err) {
+      alert('Xatolik: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectPay = async (id, empName) => {
+    if (!window.confirm(`${empName} uchun to'lov so'rovini rad etasizmi?`)) return;
+    setLoading(true);
+    try {
+      await api.deletePayroll(id);
+      onLog(`Rad etildi: ${empName}`);
       onRefresh();
     } catch (err) {
       alert('Xatolik: ' + err.message);
@@ -175,13 +189,24 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
                     <span className="text-[10px] text-slate-500 ml-1">UZS</span>
                   </p>
                 </div>
-                <button
-                  onClick={() => handleApprovePay(req._id || req.id, req.employeeName, req.calculatedSalary || req.amount)}
-                  disabled={loading}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 text-white font-black rounded-xl text-[10px] uppercase transition-all shrink-0"
-                >
-                  <CheckCircle size={14} /> To'lash
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleApprovePay(req._id || req.id, req.employeeName, req.calculatedSalary || req.amount)}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 text-white font-black rounded-xl text-[10px] uppercase transition-all min-w-[7rem]"
+                  >
+                    <CheckCircle size={14} /> To'lash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRejectPay(req._id || req.id, req.employeeName)}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600/90 hover:bg-rose-500 active:scale-95 disabled:opacity-50 text-white font-black rounded-xl text-[10px] uppercase transition-all min-w-[7rem] border border-rose-500/30"
+                  >
+                    <XCircle size={14} /> Rad etish
+                  </button>
+                </div>
               </div>
             ))}
           </div>

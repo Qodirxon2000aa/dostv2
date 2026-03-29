@@ -18,11 +18,19 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
 
   const employeeData = useMemo(() => {
     if (!user || !employees.length) return null;
-    return employees.find(e =>
-      e._id === user._id || e._id === user.uid ||
-      e.uid === user._id || e.uid === user.uid ||
-      e.email === user.email
-    ) || null;
+    const uid = user._id != null ? String(user._id) : '';
+    const uu = user.uid != null ? String(user.uid) : '';
+    const mail = user.email ? String(user.email).toLowerCase() : '';
+    return employees.find(e => {
+      const eid = e._id != null ? String(e._id) : '';
+      const euid = e.uid != null ? String(e.uid) : '';
+      const em = e.email ? String(e.email).toLowerCase() : '';
+      return (
+        (uid && (eid === uid || euid === uid)) ||
+        (uu && (eid === uu || euid === uu)) ||
+        (mail && em === mail)
+      );
+    }) || null;
   }, [employees, user]);
 
   const targetId = employeeData?._id || employeeData?.uid || null;
