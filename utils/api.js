@@ -77,6 +77,12 @@ export const api = {
   cancelFine: (id)   => request('PATCH',  `/fines/${id}/cancel`),
   deleteFine: (id)   => request('DELETE', `/fines/${id}`),
 
+  // ── Suppliers (Beruvchilar) ───────────────────────────────────
+  getSuppliers:    ()         => request('GET',    '/suppliers'),
+  createSupplier:  (body)     => request('POST',   '/suppliers', body),
+  updateSupplier:  (id, body) => request('PUT',    `/suppliers/${id}`, body),
+  deleteSupplier:  (id)       => request('DELETE', `/suppliers/${id}`),
+
   // ── Warehouse ─────────────────────────────────────────────────
   getWarehouse:     (objectId)  => request('GET',    `/warehouse${objectId ? '?objectId=' + objectId : ''}`),
   createWarehouse:  (body)      => request('POST',   '/warehouse', body),

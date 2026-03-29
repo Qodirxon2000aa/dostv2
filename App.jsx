@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Warehouse as WarehouseIcon,
   Gift,
+  Contact2,
+  Settings,
 } from 'lucide-react';
 
 import { api } from './utils/api';
@@ -28,7 +30,9 @@ import ObjectsPage       from './pages/ObjectsPage';
 import ExcelPage         from './pages/ExcelPage';
 import FinesPage         from './pages/FinesPage';
 import WarehousePage     from './pages/WarehousePage';
+import SuppliersPage     from './pages/SuppliersPage';
 import BonusesPage       from './pages/BonusesPage';
+import SettingsPage      from './pages/SettingsPage';
 
 const App = () => {
   // Current User holati
@@ -207,9 +211,11 @@ const App = () => {
                         )}
                         <NavItem to="/excel"      icon={<BarChart3 size={20}/>}       label="Hisobotlar" />
                         <NavItem to="/warehouse"  icon={<WarehouseIcon size={20}/>}   label="Ombor" />
+                        <NavItem to="/suppliers"  icon={<Contact2 size={20}/>}         label="Beruvchilar" />
                         
                       </>
                     )}
+                    <NavItem to="/settings" icon={<Settings size={20}/>} label="Sozlamalar" />
                   </nav>
 
                   {/* User info */}
@@ -385,6 +391,13 @@ const App = () => {
                       />
 
                       <Route
+                        path="/suppliers"
+                        element={isAdminOrSuper ? (
+                          <SuppliersPage objects={objects} />
+                        ) : <Navigate to="/" />}
+                      />
+
+                      <Route
                         path="/bonuses"
                         element={isAdminOrSuper ? (
                           <BonusesPage 
@@ -412,6 +425,8 @@ const App = () => {
                           />
                         }
                       />
+
+                      <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
                   </div>
                 </main>

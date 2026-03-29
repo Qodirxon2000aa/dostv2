@@ -68,6 +68,28 @@
   </style>
 
   <link rel="stylesheet" href="/index.css" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('app_theme');
+        var light = false;
+        if (t === 'light') light = true;
+        else if (t === 'system')
+          light = !window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (light) {
+          document.documentElement.classList.add('theme-light');
+          document.body.style.backgroundColor = '#f1f5f9';
+          document.body.style.color = '#0f172a';
+        }
+        var fs = localStorage.getItem('app_font_scale');
+        if (fs === 'sm') document.documentElement.style.fontSize = '87.5%';
+        else if (fs === 'lg') document.documentElement.style.fontSize = '112.5%';
+        else if (fs === 'xl') document.documentElement.style.fontSize = '125%';
+        if (localStorage.getItem('app_reduced_motion') === '1')
+          document.documentElement.classList.add('reduce-motion');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

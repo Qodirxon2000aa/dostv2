@@ -26,7 +26,7 @@ input,
 button,
 select,
 textarea {
-font-size: 16px !important;
+font-size: max(16px, 1rem) !important;
 }
 
 /* 🔥 ROOT LAYOUT */
@@ -120,4 +120,116 @@ animation-duration: 0.01ms !important;
 animation-iteration-count: 1 !important;
 transition-duration: 0.01ms !important;
 }
+}
+
+/* Foydalanuvchi sozlamasidan: animatsiyani kamaytirish */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.02ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.02ms !important;
+}
+
+/* ── Light mode (html.theme-light) — Tailwind slate/yellow klasslari ustidan ── */
+html.theme-light {
+  color-scheme: light;
+}
+
+html.theme-light .custom-scroll {
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+html.theme-light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+html.theme-light .bg-slate-900 {
+  background-color: #f1f5f9 !important;
+}
+html.theme-light .bg-slate-800 {
+  background-color: #e2e8f0 !important;
+}
+html.theme-light .bg-slate-700 {
+  background-color: #cbd5e1 !important;
+}
+
+html.theme-light .bg-slate-950\/80,
+html.theme-light .bg-slate-950\/70 {
+  background-color: rgba(248, 250, 252, 0.92) !important;
+}
+html.theme-light .bg-slate-900\/50 {
+  background-color: rgba(241, 245, 249, 0.65) !important;
+}
+html.theme-light .bg-slate-900\/40,
+html.theme-light .bg-slate-900\/60 {
+  background-color: rgba(241, 245, 249, 0.55) !important;
+}
+html.theme-light .bg-slate-800\/50 {
+  background-color: rgba(226, 232, 240, 0.55) !important;
+}
+
+html.theme-light .bg-black\/60 {
+  background-color: rgba(15, 23, 42, 0.35) !important;
+}
+
+html.theme-light .border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+html.theme-light .border-slate-700 {
+  border-color: #cbd5e1 !important;
+}
+html.theme-light .border-slate-600 {
+  border-color: #94a3b8 !important;
+}
+
+html.theme-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+html.theme-light .text-white {
+  color: #0f172a !important;
+}
+html.theme-light .text-slate-50 {
+  color: #020617 !important;
+}
+html.theme-light .text-slate-200 {
+  color: #1e293b !important;
+}
+html.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+html.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+html.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+html.theme-light .text-slate-600 {
+  color: #475569 !important;
+}
+html.theme-light .text-slate-700 {
+  color: #334155 !important;
+}
+
+html.theme-light .placeholder\:text-slate-700::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.theme-light .shadow-slate-950\/50 {
+  --tw-shadow-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light .ring-slate-800 {
+  --tw-ring-color: #e2e8f0 !important;
+}
+
+/* Qizil / yashil / sariq aksentlar saqlanadi; faqat juda och matnni tuzatish */
+html.theme-light .text-red-300 {
+  color: #b91c1c !important;
+}
+html.theme-light .text-emerald-400 {
+  color: #047857 !important;
+}
+html.theme-light .text-rose-400 {
+  color: #be123c !important;
 }
