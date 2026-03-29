@@ -1,5 +1,5 @@
 // api.js
-const BASE_URL = 'http://localhost:5001/api';
+const BASE_URL = 'https://nodirkhanov.uz/api';
 
 const getToken = () => {
   try {
