@@ -3,34 +3,143 @@ import {
   Calculator, X, Wallet, Users, AlertTriangle, ChevronRight, Gift,
 } from 'lucide-react';
 
-const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
+const UmumiyHisobModal = ({
+  employeeStats,
+  attendance,
+  payroll,
+  objects,
+  fines = [],
+  bonuses = [],
+  onClose,
+  onSelectEmp,
+}) => {
   const [sortBy, setSortBy] = useState('remaining');
+  const [selectedObjectId, setSelectedObjectId] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [rangePreset, setRangePreset] = useState('all'); // all | 7d | month | custom
+
+  const applyPreset = (preset) => {
+    setRangePreset(preset);
+    if (preset === 'all') {
+      setDateFrom('');
+      setDateTo('');
+      return;
+    }
+    if (preset === '7d') {
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(from.getDate() - 6);
+      const toStr = today.toISOString().split('T')[0];
+      const fromStr = from.toISOString().split('T')[0];
+      setDateFrom(fromStr);
+      setDateTo(toStr);
+      return;
+    }
+    if (preset === 'month') {
+      const d = new Date();
+      const first = new Date(d.getFullYear(), d.getMonth(), 1);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const fromStr = first.toISOString().split('T')[0];
+      const toStr = last.toISOString().split('T')[0];
+      setDateFrom(fromStr);
+      setDateTo(toStr);
+    }
+  };
+
+  const computedStats = useMemo(() => {
+    const hasDateFilter = Boolean(dateFrom || dateTo);
+
+    return employeeStats.map(base => {
+      const { emp, empId } = base;
+      const dailyRate = Number(emp.salaryRate) || 0;
+
+      const workedDays = attendance.filter(a => {
+        const aEmpId = a.employeeId?._id || a.employeeId;
+        if (String(aEmpId) !== String(empId)) return false;
+        if (a.status !== 'PRESENT') return false;
+        if (selectedObjectId) {
+          const aObjId = a.objectId?._id || a.objectId;
+          if (String(aObjId) !== String(selectedObjectId)) return false;
+        }
+        if (!hasDateFilter) return true;
+        if (dateFrom && a.date < dateFrom) return false;
+        if (dateTo && a.date > dateTo) return false;
+        return true;
+      }).length;
+
+      const totalEarned = workedDays * dailyRate;
+
+      const totalTaken = payroll.reduce((sum, p) => {
+        const pEmpId = p.employeeId?._id || p.employeeId;
+        if (String(pEmpId) !== String(empId)) return sum;
+        if (p.status && p.status !== 'APPROVED') return sum;
+        if (selectedObjectId) {
+          const pObjId = p.objectId?._id || p.objectId;
+          if (String(pObjId) !== String(selectedObjectId)) return sum;
+        }
+        if (hasDateFilter) {
+          const pd = p.date;
+          if (pd) {
+            if (dateFrom && pd < dateFrom) return sum;
+            if (dateTo && pd > dateTo) return sum;
+          }
+        }
+        const val = Number(p.calculatedSalary) || 0;
+        return sum + val;
+      }, 0);
+
+      const totalFines = (fines || [])
+        .filter(f => {
+          const fEmpId = f.employeeId?._id || f.employeeId;
+          return (
+            String(fEmpId) === String(empId) &&
+            f.status === 'ACTIVE'
+          );
+        })
+        .reduce((s, f) => s + (Number(f.amount) || 0), 0);
+
+      const totalBonuses = base.totalBonuses || 0;
+
+      const remaining = totalEarned - totalTaken - totalFines + totalBonuses;
+
+      return {
+        ...base,
+        workedDays,
+        totalEarned,
+        totalTaken,
+        totalFines,
+        totalBonuses,
+        remaining,
+      };
+    });
+  }, [employeeStats, attendance, payroll, fines, dateFrom, dateTo, selectedObjectId]);
 
   const sorted = useMemo(() => {
-    return [...employeeStats].sort((a, b) => {
+    return [...computedStats].sort((a, b) => {
       if (sortBy === 'remaining') return b.remaining - a.remaining;
       if (sortBy === 'earned') return b.totalEarned - a.totalEarned;
       if (sortBy === 'taken') return b.totalTaken - a.totalTaken;
       return 0;
     });
-  }, [employeeStats, sortBy]);
+  }, [computedStats, sortBy]);
 
-  const grandTotalEarned = employeeStats.reduce((s, e) => s + e.totalEarned, 0);
-  const grandTotalTaken = employeeStats.reduce((s, e) => s + e.totalTaken, 0);
-  const grandTotalFines = employeeStats.reduce((s, e) => s + e.totalFines, 0);
-  const grandTotalBonuses = employeeStats.reduce((s, e) => s + (e.totalBonuses || 0), 0);
-  const grandRemaining = employeeStats.reduce((s, e) => s + e.remaining, 0);
-  const positiveCount = employeeStats.filter(e => e.remaining > 0).length;
-  const negativeCount = employeeStats.filter(e => e.remaining < 0).length;
-  const maxRemaining = Math.max(...employeeStats.map(e => Math.abs(e.remaining)), 1);
+  const grandTotalEarned = computedStats.reduce((s, e) => s + e.totalEarned, 0);
+  const grandTotalTaken = computedStats.reduce((s, e) => s + e.totalTaken, 0);
+  const grandTotalFines = computedStats.reduce((s, e) => s + e.totalFines, 0);
+  const grandTotalBonuses = computedStats.reduce((s, e) => s + (e.totalBonuses || 0), 0);
+  const grandRemaining = computedStats.reduce((s, e) => s + e.remaining, 0);
+  const positiveCount = computedStats.filter(e => e.remaining > 0).length;
+  const negativeCount = computedStats.filter(e => e.remaining < 0).length;
+  const maxRemaining = Math.max(...computedStats.map(e => Math.abs(e.remaining)), 1);
 
   return (
     <div
       className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/90"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg max-h-[95vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 pt-5 pb-4 space-y-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg h-[96vh] sm:h-[92vh] shadow-2xl flex flex-col overflow-hidden">
+        <div className="shrink-0 bg-slate-900 border-b border-slate-800 px-5 pt-5 pb-4 space-y-4 max-h-[42vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 shrink-0 bg-violet-500/10 border border-violet-500/30 rounded-2xl flex items-center justify-center">
@@ -117,7 +226,85 @@ const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
             )}
             <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl">
               <Users size={10} className="text-slate-400" />
-              <span className="text-[8px] text-slate-400 font-black uppercase">{employeeStats.length} ta xodim</span>
+              <span className="text-[8px] text-slate-400 font-black uppercase">{computedStats.length} ta xodim</span>
+            </div>
+          </div>
+
+          {/* Obyekt va sana filtrlari */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <p className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">
+                  Obyekt bo'yicha filter
+                </p>
+                <select
+                  value={selectedObjectId}
+                  onChange={e => setSelectedObjectId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 text-white px-3 py-2 rounded-xl text-[11px] font-bold outline-none transition-all"
+                >
+                  <option value="">— Barcha obyektlar —</option>
+                  {(objects || []).map(o => (
+                    <option key={o._id || o.id} value={o._id || o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <p className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">
+                  Sana oralig'i
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { key: 'all', label: 'Hammasi' },
+                    { key: '7d', label: '7 kun' },
+                    { key: 'month', label: 'Oy' },
+                  ].map(btn => (
+                    <button
+                      key={btn.key}
+                      type="button"
+                      onClick={() => applyPreset(btn.key)}
+                      className={`py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${
+                        rangePreset === btn.key
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-slate-950 text-slate-500 border border-slate-800 hover:text-white hover:border-violet-500/40'
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">
+                  Dan
+                </p>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => {
+                    setDateFrom(e.target.value);
+                    setRangePreset('custom');
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 text-white px-3 py-2 rounded-xl text-[11px] font-bold outline-none transition-all"
+                />
+              </div>
+              <div>
+                <p className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">
+                  Gacha
+                </p>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => {
+                    setDateTo(e.target.value);
+                    setRangePreset('custom');
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 text-white px-3 py-2 rounded-xl text-[11px] font-bold outline-none transition-all"
+                />
+              </div>
             </div>
           </div>
 
@@ -143,7 +330,7 @@ const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
           </div>
         </div>
 
-        <div className="p-4 space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
           {sorted.map(stats => {
             const { emp, totalTaken, totalEarned, totalFines, totalBonuses = 0, remaining, workedDays } = stats;
             const isNegative = remaining < 0;
@@ -249,7 +436,7 @@ const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
           })}
         </div>
 
-        <div className="sticky bottom-0 bg-slate-900 border-t border-slate-800 p-4">
+        <div className="shrink-0 bg-slate-900 border-t border-slate-800 p-4">
           <div className="bg-gradient-to-r from-violet-500/10 to-slate-950 border border-violet-500/20 rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -261,7 +448,7 @@ const UmumiyHisobModal = ({ employeeStats, onClose, onSelectEmp }) => {
               </div>
               <div className="text-right">
                 <p className="text-violet-400 font-black text-xl italic">
-                  {employeeStats.filter(e => e.remaining > 0).reduce((s, e) => s + e.remaining, 0).toLocaleString()}
+                  {computedStats.filter(e => e.remaining > 0).reduce((s, e) => s + e.remaining, 0).toLocaleString()}
                 </p>
                 <p className="text-[9px] text-slate-500 font-bold">UZS</p>
               </div>

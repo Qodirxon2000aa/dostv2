@@ -488,7 +488,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
           ['DOST ELECTRIC — OMBOR MOLIYAVIY XULOSA', '', now()],
           [],
           ['Umumiy ombor bo‘yicha jami summa (UZS)', total, ''],
-          ['Faol mahsulot pozitsiyalari', warehouseStats.materialRows, 'ta'],
+          ['Faol mahsulot Maxsulotlar', warehouseStats.materialRows, 'ta'],
           ['Obyektlar (omborda yozuv bor)', warehouseStats.objectsWithStock, 'ta'],
           [],
           ['Obyekt', 'Mahsulotlar soni', 'Summa (UZS)'],
@@ -857,7 +857,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
           ['DOST ELECTRIC — OMBOR', '', now()],
           [],
           ['Umumiy summa (UZS)', warehouseStats.totalValue, ''],
-          ['Mahsulot pozitsiyalari', warehouseStats.materialRows, 'ta'],
+          ['Mahsulot Turlari', warehouseStats.materialRows, 'ta'],
           ['Obyektlar (yozuv bor)', warehouseStats.objectsWithStock, 'ta'],
         ],
         { headerRowIndex: -1 }
@@ -978,7 +978,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
               { label: 'Jami berildi', val: totalPaid.toLocaleString(),                        unit: 'UZS',       color: 'text-emerald-400' },
               { label: 'Jami byudjet', val: totalBudget.toLocaleString(),                      unit: 'UZS',       color: 'text-purple-400'  },
               { label: 'Ombor (summa)', val: warehouseStats.totalValue.toLocaleString(),      unit: 'UZS',       color: 'text-amber-400'   },
-              { label: 'Mahsulotlar',   val: warehouseStats.materialRows,                     unit: 'ta pozitsiya', color: 'text-cyan-400' },
+              { label: 'Mahsulotlar',   val: warehouseStats.materialRows,                     unit: 'ta maxsulot', color: 'text-cyan-400' },
             ].map(s => (
               <div key={s.label} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-center">
                 <p className="text-[8px] text-slate-500 font-black uppercase mb-1">{s.label}</p>

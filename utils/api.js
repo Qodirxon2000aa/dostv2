@@ -1,7 +1,7 @@
 // api.js — Vite: .env da VITE_API_URL=http://localhost:5000/api (oxirida bo'sh joy bo'lmasin)
 const BASE_URL = (() => {
   const fromEnv = String(import.meta.env.VITE_API_URL ?? '').trim();
-  return fromEnv || 'https://nodirkhanov.uz/api';
+  return fromEnv || 'http://localhost:5001/api';
 })();
 
 const getToken = () => {

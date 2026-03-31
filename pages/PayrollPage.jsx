@@ -1206,6 +1206,11 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
       {showUmumiyHisob && (
         <UmumiyHisobModal
           employeeStats={employeeStats}
+          attendance={attendance}
+          payroll={approvedPayroll}
+          objects={objects}
+          fines={fines}
+          bonuses={bonuses}
           onClose={() => setShowUmumiyHisob(false)}
           onSelectEmp={(stats) => setDetailEmpStats(stats)}
         />
