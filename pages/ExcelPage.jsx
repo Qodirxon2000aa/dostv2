@@ -11,6 +11,7 @@ import {
   writeWorkbook,
   downloadStyledTable,
 } from '../utils/excelExportStyled';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 
 const downloadJSON = (data, filename) => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -44,6 +45,11 @@ const readExportHistory = () => {
    MAIN COMPONENT
    ───────────────────────────────────────────── */
 const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) => {
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
+  const workforceIds = useMemo(
+    () => new Set(workforce.map((e) => String(e._id || e.id))),
+    [workforce]
+  );
   const [activeCategory, setActiveCategory] = useState('all');
   const [downloading, setDownloading]       = useState(null);
   const [filterMonth, setFilterMonth]       = useState(new Date().toISOString().slice(0, 7));
@@ -109,10 +115,10 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       title: "Xodimlar to'liq ma'lumoti",
       desc:  'Barcha xodimlar: ism, lavozim, stavka, holat',
       icon:  <Users size={18}/>, color: 'blue', format: 'XLSX',
-      count: employees.length,
+      count: workforce.length,
       rows: () => {
-        const headers = ['#', 'Ism', 'Lavozim', 'Email', 'Kunlik stavka (UZS)', 'Tur', 'Holat', "Qo'shilgan sana"];
-        const rows    = employees.map((e, i) => [
+        const headers = ['#', 'Ism', 'Lavozim', 'Login', 'Kunlik stavka (UZS)', 'Tur', 'Holat', "Qo'shilgan sana"];
+        const rows    = workforce.map((e, i) => [
           i + 1, e.name, e.position || '—', e.email || '—',
           e.salaryRate || 0,
           e.salaryType === 'DAILY' ? 'Kunlik' : 'Oylik',
@@ -131,10 +137,10 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       title: 'Xodimlar ish haqi xulosasi',
       desc:  'Kim qancha ishladi, qancha oldi, qancha qoldi',
       icon:  <TrendingUp size={18}/>, color: 'emerald', format: 'XLSX',
-      count: employees.filter(e => e.status === 'ACTIVE').length,
+      count: workforce.filter(e => e.status === 'ACTIVE').length,
       rows: () => {
         const headers = ['#', 'Xodim', 'Lavozim', 'Ish kunlari', 'Kunlik stavka', 'Hisoblangan (UZS)', 'Olingan (UZS)', 'Qoldiq (UZS)', 'Obyektlar'];
-        const rows = employees.filter(e => e.status === 'ACTIVE').map((emp, i) => {
+        const rows = workforce.filter(e => e.status === 'ACTIVE').map((emp, i) => {
           const empId    = emp._id || emp.id;
           const worked   = attendance.filter(
             (a) => String(a.employeeId?._id || a.employeeId) === String(empId) && a.status === 'PRESENT'
@@ -224,9 +230,13 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       title: "Davomat to'liq ro'yxat",
       desc:  'Barcha tasdiqlangan davomat yozuvlari',
       icon:  <CheckCircle size={18}/>, color: 'teal', format: 'XLSX',
-      count: attendance.filter(a => a.status === 'PRESENT').length,
+      count: attendance.filter(
+        (a) => a.status === 'PRESENT' && workforceIds.has(String(a.employeeId?._id || a.employeeId))
+      ).length,
       rows: () => {
-        const present = attendance.filter(a => a.status === 'PRESENT');
+        const present = attendance.filter(
+          (a) => a.status === 'PRESENT' && workforceIds.has(String(a.employeeId?._id || a.employeeId))
+        );
         const headers = ['#', 'Xodim', 'Sana', 'Obyekt', 'Holat'];
         const rows    = present.map((a, i) => {
           const emp = employees.find(e => String(e._id || e.id) === String(a.employeeId?._id || a.employeeId));
@@ -244,10 +254,10 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       title: "Xodimlar davomat xulosasi",
       desc:  "Har bir xodim uchun ish kunlari statistikasi",
       icon:  <BarChart3 size={18}/>, color: 'cyan', format: 'XLSX',
-      count: employees.filter(e => e.status === 'ACTIVE').length,
+      count: workforce.filter((e) => e.status === 'ACTIVE').length,
       rows: () => {
         const headers = ['#', 'Xodim', 'Lavozim', 'Ish kunlari', 'Keldi', 'Kelmadi', 'Davomat %'];
-        const rows    = employees.filter(e => e.status === 'ACTIVE').map((emp, i) => {
+        const rows    = workforce.filter((e) => e.status === 'ACTIVE').map((emp, i) => {
           const empId  = emp._id || emp.id;
           const empAtt = attendance.filter(a => String(a.employeeId?._id || a.employeeId) === String(empId));
           const came   = empAtt.filter(a => a.status === 'PRESENT').length;
@@ -293,10 +303,14 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       icon:  <Star size={18}/>, color: 'amber', format: 'XLSX', badge: 'PRO',
       count: null,
       rows: () => {
-        const totalEmp    = employees.filter(e => e.status === 'ACTIVE').length;
+        const totalEmp    = workforce.filter(e => e.status === 'ACTIVE').length;
         const totalPay    = approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary)||0), 0);
         const totalBudget = objects.reduce((s, o) => s + (Number(o.totalBudget)||0), 0);
-        const totalDays   = attendance.filter(a => a.status === 'PRESENT').length;
+        const totalDays   = attendance.filter(
+          (a) =>
+            a.status === 'PRESENT' &&
+            workforceIds.has(String(a.employeeId?._id || a.employeeId))
+        ).length;
         return [
           ['UMUMIY MOLIYA XULOSASI', '', now()], [],
           ["ASOSIY KO'RSATKICHLAR", 'Qiymat', ''],
@@ -315,7 +329,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
           }),
           [], ["XODIMLAR REYTINGI (ENG KO'P OLGAN)"],
           ["Xodim", "Jami olingan (UZS)", "To'lovlar soni"],
-          ...employees.map(emp => {
+          ...workforce.map(emp => {
             const eid   = emp._id || emp.id;
             const taken = approvedPayroll.filter(p => String(p.employeeId?._id || p.employeeId) === String(eid)).reduce((s, p) => s + (Number(p.calculatedSalary)||0), 0);
             const cnt   = approvedPayroll.filter(p => String(p.employeeId?._id || p.employeeId) === String(eid)).length;
@@ -338,7 +352,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       generate() {
         downloadJSON({
           exportDate: new Date().toISOString(),
-          summary: { employees: employees.length, attendance: attendance.length, payroll: approvedPayroll.length, objects: objects.length },
+          summary: { employees: workforce.length, attendance: attendance.length, payroll: approvedPayroll.length, objects: objects.length },
           employees, attendance, payroll: approvedPayroll, objects,
         }, `full_export_${now()}.json`);
       },
@@ -502,7 +516,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       },
     },
 
-  ], [employees, attendance, approvedPayroll, objects, filterMonth, filterObj, warehouseBundles, warehouseStats]);
+  ], [employees, workforce, workforceIds, attendance, approvedPayroll, objects, filterMonth, filterObj, warehouseBundles, warehouseStats]);
 
   /* ── Barcha hisobotlarni BITTA uslubli XLSX ga ── */
   const downloadAllAsOneXLSX = async () => {
@@ -512,8 +526,8 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
       const add = (name, rows, opts) => appendSheetStyled(wb, name, rows, opts || { headerRowIndex: 0 });
 
       add('Xodimlar', [
-        ['#', 'Ism', 'Lavozim', 'Email', 'Kunlik stavka (UZS)', 'Tur', 'Holat', "Qo'shilgan sana"],
-        ...employees.map((e, i) => [
+        ['#', 'Ism', 'Lavozim', 'Login', 'Kunlik stavka (UZS)', 'Tur', 'Holat', "Qo'shilgan sana"],
+        ...workforce.map((e, i) => [
           i + 1,
           e.name || '—',
           e.position || '—',
@@ -525,7 +539,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
         ]),
       ], { headerRowIndex: 0 });
 
-      const salaryRows = employees
+      const salaryRows = workforce
         .filter((e) => e.status === 'ACTIVE')
         .map((emp, i) => {
           const eid = String(emp._id || emp.id || '');
@@ -680,7 +694,11 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
         { headerRowIndex: 0 }
       );
 
-      const presentAtt = attendance.filter((a) => a.status === 'PRESENT');
+      const presentAtt = attendance.filter(
+        (a) =>
+          a.status === 'PRESENT' &&
+          workforceIds.has(String(a.employeeId?._id || a.employeeId))
+      );
       add(
         'Davomat toliq',
         [
@@ -708,7 +726,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
         'Davomat xulosasi',
         [
           ['#', 'Xodim', 'Lavozim', 'Jami kunlar', 'Keldi', 'Kelmadi', 'Davomat %'],
-          ...employees
+          ...workforce
             .filter((e) => e.status === 'ACTIVE')
             .map((emp, i) => {
               const eid = String(emp._id || emp.id || '');
@@ -729,10 +747,14 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
         { headerRowIndex: 0 }
       );
 
-      const totalEmp = employees.filter((e) => e.status === 'ACTIVE').length;
+      const totalEmp = workforce.filter((e) => e.status === 'ACTIVE').length;
       const totalPayAll = approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
       const totalBudgetAll = objects.reduce((s, o) => s + (Number(o.totalBudget) || 0), 0);
-      const totalDays = attendance.filter((a) => a.status === 'PRESENT').length;
+      const totalDays = attendance.filter(
+        (a) =>
+          a.status === 'PRESENT' &&
+          workforceIds.has(String(a.employeeId?._id || a.employeeId))
+      ).length;
       add(
         'Umumiy xulosa',
         [
@@ -760,7 +782,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
           [],
           ["XODIMLAR REYTINGI (ENG KO'P OLGAN)"],
           ['Xodim', 'Lavozim', 'Jami olingan (UZS)', "To'lovlar soni", 'Ish kunlari'],
-          ...employees
+          ...workforce
             .map((emp) => {
               const eid = String(emp._id || emp.id || '');
               const taken = approvedPayroll
@@ -869,7 +891,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
         at: new Date().toISOString(),
         label: 'Barcha hisobotlar (XLSX)',
         totals: {
-          employees: employees.filter((e) => e.status === 'ACTIVE').length,
+          employees: workforce.filter((e) => e.status === 'ACTIVE').length,
           payrollSum: approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0),
           warehouseSum: warehouseStats.totalValue,
           materials: warehouseStats.materialRows,
@@ -973,7 +995,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
-              { label: 'Xodimlar',     val: employees.filter(e=>e.status==='ACTIVE').length, unit: 'ta faol',   color: 'text-blue-400'    },
+              { label: 'Xodimlar',     val: workforce.filter(e=>e.status==='ACTIVE').length, unit: 'ta faol',   color: 'text-blue-400'    },
               { label: "To'lovlar",    val: approvedPayroll.length,                           unit: 'ta amalga', color: 'text-yellow-400'  },
               { label: 'Jami berildi', val: totalPaid.toLocaleString(),                        unit: 'UZS',       color: 'text-emerald-400' },
               { label: 'Jami byudjet', val: totalBudget.toLocaleString(),                      unit: 'UZS',       color: 'text-purple-400'  },
@@ -1005,7 +1027,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
             <p className="text-[9px] text-slate-500 font-black uppercase mb-1">Moliya + obyektlar</p>
             <p className="text-slate-300 font-bold leading-relaxed">
               Faol xodimlar:{' '}
-              <span className="text-white">{employees.filter((e) => e.status === 'ACTIVE').length}</span> ·
+              <span className="text-white">{workforce.filter((e) => e.status === 'ACTIVE').length}</span> ·
               Tasdiqlangan to‘lovlar:{' '}
               <span className="text-yellow-400">{approvedPayroll.length}</span> · Jami:{' '}
               <span className="text-emerald-400">{totalPaid.toLocaleString()} UZS</span>

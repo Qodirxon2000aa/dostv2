@@ -7,6 +7,7 @@ import {
   Wallet, Gift, Pencil, Ban,
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 import { MONTH_LABELS, MONTH_SHORT } from '../components/payroll/constants';
 import { sumActiveBonusesForEmployee, payrollDateLabel } from '../components/payroll/payrollBonusUtils';
 import UmumiyHisobModal from '../components/payroll/UmumiyHisobModal';
@@ -15,7 +16,12 @@ import { TabBtn, Empty } from '../components/payroll/PayrollChrome';
 
 // MAIN PAYROLL COMPONENT
 // ═══════════════════════════════════════════════════════════
-const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], objects = [], onLog, onRefresh }) => {
+const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], objects = [], onLog, onRefresh, canMutate = true }) => {
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
+  const workforceIds = useMemo(
+    () => new Set(workforce.map((e) => String(e._id || e.id))),
+    [workforce]
+  );
   const [activeTab, setActiveTab] = useState('salary');
   const [financeView, setFinanceView] = useState('overview');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -25,7 +31,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [salaryEmp, setSalaryEmp] = useState(null);
   const [salaryAmount, setSalaryAmount] = useState('');
-  const [salaryObjectId, setSalaryObjectId] = useState('');
   const [salaryLoading, setSalaryLoading] = useState(false);
   const [detailEmpStats, setDetailEmpStats] = useState(null);
   const [showUmumiyHisob, setShowUmumiyHisob] = useState(false); // ✅ YANGI STATE
@@ -37,7 +42,15 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   const [editPayrollRecord, setEditPayrollRecord] = useState(null);
   const [editPayrollAmount, setEditPayrollAmount] = useState('');
   const [editPaySaving, setEditPaySaving] = useState(false);
-  const pendingAttendance = attendance.filter(a => a.status === 'PENDING');
+  const pendingAttendance = useMemo(
+    () =>
+      attendance.filter(
+        (a) =>
+          a.status === 'PENDING' &&
+          workforceIds.has(String(a.employeeId?._id || a.employeeId))
+      ),
+    [attendance, workforceIds]
+  );
   const approvedPayroll = useMemo(() => payroll.filter(p => p.status === 'APPROVED'), [payroll]);
   const historyPayroll = useMemo(
     () => payroll.filter(p => p.status === 'APPROVED' || p.status === 'CANCELLED'),
@@ -62,17 +75,43 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
       const payments = approvedPayroll.filter(p =>
         String(p.objectId?._id || p.objectId) === String(objId)
       );
+      const workedDaysByEmp = {};
+      attendance.forEach(a => {
+        const aObjId = a.objectId?._id || a.objectId;
+        if (String(aObjId) !== String(objId)) return;
+        if (a.status !== 'PRESENT') return;
+        const aEmpId = String(a.employeeId?._id || a.employeeId);
+        workedDaysByEmp[aEmpId] = (workedDaysByEmp[aEmpId] || 0) + 1;
+      });
+      const dueBreakdown = Object.entries(workedDaysByEmp).map(([empId, daysWorkedAtObject]) => {
+        const emp = employees.find(e => String(e._id || e.id) === String(empId));
+        const rate = Number(emp?.salaryRate) || 0;
+        const shouldReceive = daysWorkedAtObject * rate;
+        const paidFromObject = payments
+          .filter(p => String(p.employeeId?._id || p.employeeId) === String(empId))
+          .reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
+        const remaining = shouldReceive - paidFromObject;
+        return {
+          empId,
+          empName: emp?.name || 'Noma`lum',
+          daysWorkedAtObject,
+          rate,
+          shouldReceive,
+          paidFromObject,
+          remaining,
+        };
+      }).sort((a, b) => b.shouldReceive - a.shouldReceive);
       const total = payments.reduce((s, p) => s + (Number(p.calculatedSalary) || 0), 0);
       const budget = Number(obj.totalBudget) || 0;
       const balance = budget - total;
       const empIds = [...new Set(payments.map(p => String(p.employeeId?._id || p.employeeId)))];
       const pct = budget > 0 ? Math.min(Math.round((total / budget) * 100), 100) : 0;
       const isNegative = budget > 0 && balance < 0;
-      return { obj, objId, total, budget, balance, empIds, pct, isNegative, payments };
+      return { obj, objId, total, budget, balance, empIds, pct, isNegative, payments, dueBreakdown };
     }).sort((a, b) => b.total - a.total);
-  }, [objects, approvedPayroll]);
+  }, [objects, approvedPayroll, attendance, employees]);
   const employeeStats = useMemo(() => {
-    return employees
+    return workforce
       .filter(e => e.status === 'ACTIVE')
       .map(emp => {
         const empId = emp._id || emp.id;
@@ -113,7 +152,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
         };
       })
       .sort((a, b) => b.totalTaken - a.totalTaken);
-  }, [employees, attendance, approvedPayroll, fines, bonuses]);
+  }, [workforce, attendance, approvedPayroll, fines, bonuses]);
   const topEmployee = employeeStats[0] || null;
   const topObject = objectStats[0] || null;
   const filteredHistoryByDate = useMemo(() => {
@@ -143,9 +182,13 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   const manualDateAtts = useMemo(() => {
     if (!manualDate) return [];
     return [...attendance]
-      .filter(a => a.date === manualDate)
+      .filter(
+        (a) =>
+          a.date === manualDate &&
+          workforceIds.has(String(a.employeeId?._id || a.employeeId))
+      )
       .sort((a, b) => (a.status === 'PRESENT' ? -1 : 1));
-  }, [attendance, manualDate]);
+  }, [attendance, manualDate, workforceIds]);
   const getEmpBalance = (emp) => {
     const empId = emp._id || emp.id;
     const dailyRate = Number(emp.salaryRate) || 0;
@@ -179,18 +222,18 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
     };
   };
   const openSalaryModal = (emp) => {
-    setSalaryEmp(emp); setSalaryAmount(''); setSalaryObjectId(''); setShowSalaryModal(true);
+    if (!canMutate) return;
+    setSalaryEmp(emp); setSalaryAmount(''); setShowSalaryModal(true);
   };
   const closeSalaryModal = () => {
-    setShowSalaryModal(false); setSalaryEmp(null); setSalaryAmount(''); setSalaryObjectId('');
+    setShowSalaryModal(false); setSalaryEmp(null); setSalaryAmount('');
   };
   const handleGiveSalary = async () => {
+    if (!canMutate) return;
     if (!salaryEmp || !salaryAmount || Number(salaryAmount) <= 0) return alert("Summani kiriting!");
-    if (!salaryObjectId) return alert("Obyektni tanlang!");
     setSalaryLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const objName = objects.find(o => (o._id || o.id) === salaryObjectId)?.name || '';
       await api.createPayroll({
         employeeId: salaryEmp._id || salaryEmp.id,
         employeeName: salaryEmp.name,
@@ -201,10 +244,9 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
         type: 'DAILY_PAY',
         status: 'APPROVED',
         paymentStatus: 'paid',
-        objectId: salaryObjectId,
-        objectName: objName,
+        objectName: 'UMUMIY QOZON',
       });
-      onLog(`${salaryEmp.name}ga ${Number(salaryAmount).toLocaleString()} UZS oylik berildi (${objName})`);
+      onLog(`${salaryEmp.name}ga ${Number(salaryAmount).toLocaleString()} UZS oylik berildi (Umumiy qozon)`);
       closeSalaryModal();
       onRefresh();
     } catch (err) {
@@ -214,16 +256,19 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
     }
   };
   const handleApproveAttendance = async (id) => {
+    if (!canMutate) return;
     try { await api.approveAttendance(id); onLog("Davomat tasdiqlandi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
   const handleRejectPayroll = async (id) => {
+    if (!canMutate) return;
     if (!window.confirm("O'chirilsinmi?")) return;
     try { await api.deletePayroll(id); onLog("To'lov o'chirildi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
 
   const openEditPayroll = (rec) => {
+    if (!canMutate) return;
     if (!rec || rec.status !== 'APPROVED') {
       alert("Faqat tasdiqlangan to'lovni tahrirlash mumkin.");
       return;
@@ -233,6 +278,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
   };
 
   const handleCancelPayrollPayment = async (id, empName) => {
+    if (!canMutate) return;
     if (!window.confirm(`${empName || "To'lov"} bekor qilinsinmi? Summasi hisob-kitobda inobatga olinmaydi (yozuv saqlanadi).`)) return;
     try {
       await api.cancelPayroll(id);
@@ -247,6 +293,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
     setEditPayrollAmount('');
   };
   const handleSaveEditPayroll = async () => {
+    if (!canMutate) return;
     if (!editPayrollRecord) return;
     const n = Number(editPayrollAmount);
     if (editPayrollAmount === '' || Number.isNaN(n) || n < 0) return alert("To'g'ri summani kiriting (0 yoki undan katta).");
@@ -264,11 +311,13 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
     }
   };
   const handleRejectAttendance = async (id) => {
+    if (!canMutate) return;
     if (!window.confirm("O'chirilsinmi?")) return;
     try { await api.deleteAttendance(id); onLog("Davomat o'chirildi."); onRefresh(); }
     catch { alert("Xatolik!"); }
   };
   const handleManualAttendance = async () => {
+    if (!canMutate) return;
     if (!manualEmpId) return setManualMsg({ type: 'err', text: "Xodimni tanlang!" });
     if (!manualObjId) return setManualMsg({ type: 'err', text: "Obyektni tanlang!" });
     if (!manualDate) return setManualMsg({ type: 'err', text: "Sanani kiriting!" });
@@ -375,9 +424,9 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
             </button>
           )}
 
-          {employees.filter(e => e.status === 'ACTIVE').length === 0 ? (
+          {workforce.filter(e => e.status === 'ACTIVE').length === 0 ? (
             <Empty text="Faol xodimlar yo'q"/>
-          ) : employees.filter(e => e.status === 'ACTIVE').map(emp => {
+          ) : workforce.filter(e => e.status === 'ACTIVE').map(emp => {
             const bal = getEmpBalance(emp);
             const empStat = employeeStats.find(s => String(s.empId) === String(emp._id || emp.id));
             return (
@@ -428,7 +477,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                       className="absolute top-2 right-2 text-blue-500/50 group-hover:text-blue-400 transition-colors"
                     />
                   </button>
-                  {/* QOLDIQ */}
+                  {/* BERILISHI KERAK */}
                   <div
                     className={`h-24 w-full bg-slate-900/60 p-4 rounded-2xl border
                     flex flex-col justify-center items-center text-center ${
@@ -438,7 +487,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     }`}
                   >
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-1">
-                      Qoldiq
+                      {bal.remaining >= 0 ? "Berilishi kerak" : "Ortiqcha berilgan"}
                     </p>
                     <p
                       className={`font-black text-lg leading-tight ${
@@ -509,7 +558,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
               <select value={manualEmpId} onChange={e => { setManualEmpId(e.target.value); setManualMsg(null); }}
                 className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 text-white px-4 py-3 rounded-xl font-bold text-sm outline-none transition-all">
                 <option value="">— Xodimni tanlang —</option>
-                {employees.filter(e => e.status === 'ACTIVE').map(e => (
+                {workforce.filter(e => e.status === 'ACTIVE').map(e => (
                   <option key={e._id || e.id} value={e._id || e.id}>{e.name}</option>
                 ))}
               </select>
@@ -763,7 +812,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
             <div className="space-y-3">
               {objectStats.filter(s => s.total > 0 || s.budget > 0).length === 0
                 ? <Empty text="Hali to'lovlar yo'q"/>
-                : objectStats.map(({ obj, objId, total, budget, balance, empIds, pct, isNegative, payments }) => {
+                : objectStats.map(({ obj, objId, total, budget, balance, empIds, pct, isNegative, payments, dueBreakdown }) => {
                   const isExpanded = expandedObject === objId;
                   const empBreakdown = (() => {
                     const map = {};
@@ -821,6 +870,33 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                               </div>
                             );
                           })}
+                          {dueBreakdown.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-slate-800">
+                              <p className="text-[8px] text-violet-400 font-black uppercase tracking-widest mb-2">
+                                Ish kuniga qarab olinishi kerak
+                              </p>
+                              <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                                {dueBreakdown.map(d => (
+                                  <div key={d.empId} className="grid grid-cols-3 gap-2 items-center py-1.5 px-2 rounded-lg hover:bg-slate-900/30">
+                                    <div className="min-w-0">
+                                      <p className="text-white font-black text-xs truncate">{d.empName}</p>
+                                      <p className="text-[7px] text-slate-500 font-bold">{d.daysWorkedAtObject} kun x {d.rate.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[7px] text-slate-500 font-black uppercase">Kerak</p>
+                                      <p className="text-emerald-400 font-black text-xs">{d.shouldReceive.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[7px] text-slate-500 font-black uppercase">Qoldiq</p>
+                                      <p className={`font-black text-xs ${d.remaining >= 0 ? 'text-yellow-500' : 'text-rose-500'}`}>
+                                        {d.remaining.toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           <div className="mt-3 pt-3 border-t border-slate-800">
                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-2">So'nggi to'lovlar</p>
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
@@ -895,7 +971,9 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                       <div className="mb-3 space-y-1">
                         <div className="flex justify-between text-[8px] font-black uppercase">
                           <span className="text-slate-500">Olingan / Hisoblangan</span>
-                          <span className={remaining>=0?'text-emerald-500':'text-rose-500'}>Qoldiq: {remaining.toLocaleString()} UZS</span>
+                        <span className={remaining>=0?'text-emerald-500':'text-rose-500'}>
+                          {remaining >= 0 ? 'Berilishi kerak' : 'Ortiqcha berilgan'}: {remaining.toLocaleString()} UZS
+                        </span>
                         </div>
                         <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full ${remaining<0?'bg-rose-500':'bg-emerald-500'}`} style={{width:`${earnedPct}%`}}/>
@@ -936,7 +1014,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                 <select value={selectedEmployee} onChange={e => { setSelectedEmployee(e.target.value); setExpandedMonth(null); }}
                   className="w-full bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs outline-none focus:border-blue-500 transition-all">
                   <option value="">— Barcha xodimlar —</option>
-                  {employees.map(emp => <option key={emp._id||emp.id} value={emp._id||emp.id}>{emp.name}</option>)}
+                  {workforce.map(emp => <option key={emp._id||emp.id} value={emp._id||emp.id}>{emp.name}</option>)}
                 </select>
               </div>
               {selectedEmpStats && (
@@ -960,7 +1038,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     {[
                       {label:"To'lovlar", val:`${selectedEmpStats.payments.length} ta`, color:'text-white'},
                       {label:"Hisoblangan", val:selectedEmpStats.totalEarned.toLocaleString(), color:'text-emerald-500'},
-                      {label:"Qoldiq", val:selectedEmpStats.remaining.toLocaleString(), color:selectedEmpStats.remaining>=0?'text-yellow-500':'text-rose-500'},
+                      {label:selectedEmpStats.remaining>=0?"Berilishi kerak":"Ortiqcha berilgan", val:selectedEmpStats.remaining.toLocaleString(), color:selectedEmpStats.remaining>=0?'text-yellow-500':'text-rose-500'},
                     ].map(s => (
                       <div key={s.label} className="bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800 text-center">
                         <p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">{s.label}</p>
@@ -1076,46 +1154,20 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     </div>
                   )}
                   <div className="flex justify-between pt-2 border-t border-slate-800">
-                    <span className="text-slate-500 text-[9px] font-black uppercase">Qoldiq balans</span>
-                    <span className={`font-black text-base italic ${bal.remaining>=0?'text-yellow-500':'text-rose-500'}`}>{bal.remaining.toLocaleString()} UZS</span>
+                    <span className="text-slate-500 text-[9px] font-black uppercase">
+                      {bal.remaining >= 0 ? "Berilishi kerak" : "Ortiqcha berilgan"}
+                    </span>
+                    <span className={`font-black text-base italic ${bal.remaining>=0?'text-yellow-500':'text-rose-500'}`}>
+                      {bal.remaining.toLocaleString()} UZS
+                    </span>
                   </div>
                 </div>
               );
             })()}
-            <div className="mb-4">
-              <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest block mb-2">Qaysi obyektdan</label>
-              <select value={salaryObjectId} onChange={e => setSalaryObjectId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-yellow-500 text-white px-4 py-3 rounded-2xl font-bold text-sm outline-none transition-all">
-                <option value="">— Obyektni tanlang —</option>
-                {objects.map(obj => <option key={obj._id||obj.id} value={obj._id||obj.id}>{obj.name}</option>)}
-              </select>
-              {salaryObjectId && (() => {
-                const obj = objects.find(o => (o._id||o.id) === salaryObjectId);
-                if (!obj) return null;
-                const budget = Number(obj.totalBudget)||0;
-                const spent = approvedPayroll.filter(p => String(p.objectId?._id||p.objectId)===String(obj._id||obj.id)).reduce((s,p)=>s+(Number(p.calculatedSalary)||0),0);
-                const balance = budget-spent;
-                const hasBudget=budget>0; const isNeg=hasBudget&&balance<0;
-                const pct = hasBudget?Math.min(Math.round((spent/budget)*100),100):0;
-                return (
-                  <div className="mt-3 bg-slate-950 rounded-2xl border border-slate-800 p-3 space-y-2">
-                    <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{obj.name} — moliya holati</p>
-                    {hasBudget ? (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            {label:'Byudjet',val:budget.toLocaleString(),cls:'text-white',bg:'bg-slate-900/60 border-slate-800'},
-                            {label:'Xarajat',val:spent.toLocaleString(), cls:'text-yellow-500',bg:'bg-slate-900/60 border-slate-800'},
-                            {label:'Qoldiq', val:(isNeg?'−':'')+Math.abs(balance).toLocaleString(),cls:isNeg?'text-rose-500':'text-emerald-500',bg:isNeg?'bg-rose-500/10 border-rose-500/20':'bg-emerald-500/10 border-emerald-500/20'},
-                          ].map(s=><div key={s.label} className={`p-2 rounded-xl border text-center ${s.bg}`}><p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">{s.label}</p><p className={`font-black text-xs ${s.cls}`}>{s.val}</p></div>)}
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full rounded-full ${isNeg?'bg-rose-500':'bg-emerald-500'}`} style={{width:`${isNeg?100:pct}%`}}/></div>
-                        <div className="flex justify-between"><span className="text-[8px] text-slate-600 font-bold">{pct}% ishlatildi</span>{isNeg&&<span className="text-[8px] text-rose-500 font-black">⚠ Limit oshdi</span>}</div>
-                      </>
-                    ) : <p className="text-slate-600 text-[9px] font-black uppercase text-center py-1">Jami xarajat: <span className="text-yellow-500">{spent.toLocaleString()} UZS</span></p>}
-                  </div>
-                );
-              })()}
+            <div className="mb-4 bg-slate-950 rounded-2xl border border-slate-800 p-3">
+              <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">To'lov manbasi</p>
+              <p className="text-white font-black text-sm mt-1">Umumiy qozon</p>
+              <p className="text-[9px] text-slate-500 mt-1">Payroll byudjet bilan cheklanmaydi. Obyekt bo'yicha kerak summa Objects sahifada hisoblanadi.</p>
             </div>
             <div className="mb-4">
               <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest block mb-2">Beriladigan summa (UZS)</label>
@@ -1140,7 +1192,7 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
               ) : <div className="mb-5"/>;
             })()}
             <button onClick={handleGiveSalary}
-              disabled={salaryLoading || !salaryAmount || Number(salaryAmount)<=0 || !salaryObjectId}
+              disabled={salaryLoading || !salaryAmount || Number(salaryAmount)<=0}
               className="w-full py-4 bg-yellow-500 hover:bg-yellow-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black rounded-2xl transition-all uppercase tracking-widest text-sm shadow-lg shadow-yellow-500/20">
               {salaryLoading?'Yuborilmoqda...':Number(salaryAmount)>0?`${Number(salaryAmount).toLocaleString()} UZS Berish`:'Oylik Berish'}
             </button>

@@ -4,6 +4,7 @@ import {
   Activity, TrendingUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { isAdminPanelRole } from '../utils/employeeRoles';
 
 const getTodayStr = () => new Date().toISOString().split('T')[0];
 
@@ -29,12 +30,23 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
 
   /* ── HISOBLAR ── */
   const stats = useMemo(() => {
-    const activeEmployees = employees.filter(e => e.status === 'ACTIVE').length;
+    const workforceList = employees.filter((e) => !isAdminPanelRole(e));
+    const wfIds = new Set(workforceList.map((e) => String(e._id || e.id)));
+    const activeWorkforce = workforceList.filter((e) => e.status === 'ACTIVE').length;
 
-    /* Filtrlangan davomat yozuvlari */
+    /* Filtrlangan davomat yozuvlari — faqat ishchilar (adminlar yo‘q) */
     const filteredAtt = mode === 'single'
-      ? attendance.filter(a => a.date === selectedDate)
-      : attendance.filter(a => a.date >= rangeFrom && a.date <= rangeTo);
+      ? attendance.filter(
+          (a) =>
+            a.date === selectedDate &&
+            wfIds.has(String(a.employeeId?._id || a.employeeId))
+        )
+      : attendance.filter(
+          (a) =>
+            a.date >= rangeFrom &&
+            a.date <= rangeTo &&
+            wfIds.has(String(a.employeeId?._id || a.employeeId))
+        );
 
     const presentCount = filteredAtt.filter(a => a.status === 'PRESENT').length;
     const pendingCount = filteredAtt.filter(a => a.status === 'PENDING').length;
@@ -46,9 +58,8 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
         .map(a => String(a.employeeId?._id || a.employeeId))
     );
 
-    /* Davomat % — noyob kelgan xodimlar (duplicate yozuvlardan qochish) */
-    const attendanceRate = activeEmployees > 0
-      ? Math.round((presentEmpIds.size / activeEmployees) * 100)
+    const attendanceRate = activeWorkforce > 0
+      ? Math.round((presentEmpIds.size / activeWorkforce) * 100)
       : 0;
 
     /* Oylik — single: o'sha oy; range: oraliq oylar */
@@ -73,14 +84,13 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
     const uniquePresent = presentEmpIds.size;
     const statusData = [
       { name: 'Kelgan',    value: uniquePresent,                                      color: '#10b981' },
-      { name: 'Kelmagan',  value: Math.max(0, activeEmployees - uniquePresent),         color: '#f43f5e' },
+      { name: 'Kelmagan',  value: Math.max(0, activeWorkforce - uniquePresent), color: '#f43f5e' },
     ].filter(d => d.value > 0);
 
     /* Kun/oralig'i davomat jadvali */
     let dayAttendance;
     if (mode === 'single') {
-      /* Barcha faol xodimlarni ko'rsat */
-      dayAttendance = employees.filter(e => e.status === 'ACTIVE').map(emp => {
+      dayAttendance = workforceList.filter((e) => e.status === 'ACTIVE').map((emp) => {
         const empId  = emp._id || emp.id;
         const record = attendance.find(a =>
           a.date === selectedDate &&
@@ -115,7 +125,8 @@ const Dashboard = ({ employees, attendance, payroll, logs }) => {
     }
 
     return {
-      activeEmployees, presentCount, pendingCount, absentCount,
+      activeEmployees: activeWorkforce,
+      presentCount, pendingCount, absentCount,
       presentEmpIds, attendanceRate, totalPayroll, statusData, dayAttendance,
       filteredAtt,
     };

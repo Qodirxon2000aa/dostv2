@@ -233,3 +233,141 @@ html.theme-light .text-emerald-400 {
 html.theme-light .text-rose-400 {
   color: #be123c !important;
 }
+
+/* Real-time xabarnoma toast animatsiyalari */
+@keyframes rt-admin-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(110%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.rt-admin-toast {
+  animation: rt-admin-toast-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rt-toast-shimmer {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+.rt-toast-shimmer {
+  animation: rt-toast-shimmer 2.2s ease-in-out infinite;
+}
+
+/* Ishchi kabineti xabari — markazda, yumshoq kirish */
+@keyframes rt-emp-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.rt-emp-toast-enter {
+  animation: rt-emp-toast-in 0.42s cubic-bezier(0.25, 0.9, 0.35, 1) both;
+}
+
+.ep-notif-card {
+  transform-origin: 50% 100%;
+}
+
+/* Ishchi kabinet — o‘qilmagan xabar banneri (yuqoridan) */
+@keyframes rt-emp-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rt-emp-banner-enter {
+  animation: rt-emp-banner-in 0.45s cubic-bezier(0.25, 0.9, 0.35, 1) both;
+}
+
+/* Ishchi kabinet — banner / toast: telefon va notch */
+.rt-emp-banner-shell {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.rt-emp-banner-card {
+  width: 100%;
+  max-width: min(100%, 26rem);
+  box-shadow:
+    0 10px 36px -10px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(251, 191, 36, 0.12);
+}
+
+.rt-emp-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rt-emp-banner-actions > button {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rt-emp-toast-shell {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.rt-emp-toast-card {
+  width: 100%;
+  max-width: min(100%, 26rem);
+  box-shadow:
+    0 12px 40px -8px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(51, 65, 85, 0.35);
+}
+
+@media (max-width: 420px) {
+  .rt-emp-banner-card,
+  .rt-emp-toast-card {
+    max-width: 100%;
+    border-radius: 1rem;
+  }
+
+  .rt-emp-banner-actions {
+    flex-direction: column;
+  }
+
+  .rt-emp-banner-actions > button {
+    width: 100%;
+    flex: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .rt-emp-banner-shell,
+  .rt-emp-toast-shell {
+    padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Pastki toast — kichik ekranlarda biroz yuqoriga */
+@media (max-width: 380px) {
+  .rt-emp-toast-shell.rt-emp-toast-shell--bottom {
+    bottom: max(4.5rem, calc(60px + env(safe-area-inset-bottom, 0px))) !important;
+  }
+}

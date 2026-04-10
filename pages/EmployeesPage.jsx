@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Edit2, Trash2, X, UserPlus, Banknote, CheckCircle, XCircle, Clock, Eye, EyeOff } from 'lucide-react';
 import { api } from '../utils/api';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 
-const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
+const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh, canMutate = true }) => {
   const [searchTerm, setSearchTerm]       = useState('');
   const [loading, setLoading]             = useState(false);
   const [showAddModal, setShowAddModal]   = useState(false);
@@ -18,7 +19,17 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
     salaryType: 'DAILY', salaryRate: 0, currency: 'UZS',
   });
 
-  const pendingRequests = payroll.filter(p => p.status === 'PENDING');
+  /** Administratorlar «Xodimlar» ro‘yxatida chiqmaydi — ular «Adminlar boshqaruvi» va «Davomat»da. */
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
+
+  const pendingRequests = useMemo(() => {
+    const ids = new Set(workforce.map((e) => String(e._id || e.id)));
+    return payroll.filter((p) => {
+      if (p.status !== 'PENDING') return false;
+      const pid = String(p.employeeId?._id || p.employeeId || '');
+      return ids.has(pid);
+    });
+  }, [payroll, workforce]);
 
   const handleApprovePay = async (id, empName, amount) => {
     setLoading(true);
@@ -51,7 +62,7 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.createEmployee({ ...newEmp, status: 'ACTIVE' });
+      await api.createEmployee({ ...newEmp, status: 'ACTIVE', role: 'EMPLOYEE' });
       onLog(`Yangi xodim qo'shildi: ${newEmp.name}`);
       setShowAddModal(false);
       setNewEmp({ name: '', email: '', password: '', position: '', salaryType: 'DAILY', salaryRate: 0, currency: 'UZS' });
@@ -143,26 +154,33 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
     setShowEditModal(true);
   };
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = workforce.filter((emp) =>
+    (emp.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-4 pb-10">
 
       {/* ── SARLAVHA ── */}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-black text-white italic">
-          Xodimlar <span className="text-yellow-500">Boshqaruvi</span>
-        </h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-xl font-black text-white italic">
+            Xodimlar <span className="text-yellow-500">Boshqaruvi</span>
+          </h1>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide max-w-xl leading-relaxed">
+            Administrator akkauntlari bu yerda chiqmaydi — ular faqat «Adminlar boshqaruvi»da (davomat faqat ishchilar uchun).
+          </p>
+        </div>
+        {canMutate && (
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-yellow-500 text-slate-950 px-4 py-2.5 rounded-xl font-black text-xs hover:bg-yellow-400 active:scale-95 transition-all shadow-lg shadow-yellow-500/20 shrink-0"
+          className="flex items-center gap-2 bg-yellow-500 text-slate-950 px-4 py-2.5 rounded-xl font-black text-xs hover:bg-yellow-400 active:scale-95 transition-all shadow-lg shadow-yellow-500/20 shrink-0 self-start"
         >
           <UserPlus size={16} />
           <span className="hidden sm:inline">Yangi Xodim</span>
           <span className="sm:hidden">Qo'shish</span>
         </button>
+        )}
       </div>
 
       {/* ── PENDING TO'LOVLAR ── */}
@@ -190,6 +208,8 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                  {canMutate ? (
+                    <>
                   <button
                     type="button"
                     onClick={() => handleApprovePay(req._id || req.id, req.employeeName, req.calculatedSalary || req.amount)}
@@ -206,6 +226,10 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
                   >
                     <XCircle size={14} /> Rad etish
                   </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-black text-slate-500 uppercase px-2">Faqat ko‘rish</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -236,8 +260,8 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
             >
               <div className="flex items-center justify-between mb-3">
                 <div
-                  onClick={() => setShowQuickPay(emp)}
-                  className="flex items-center gap-3 cursor-pointer min-w-0 flex-1"
+                  onClick={() => canMutate && setShowQuickPay(emp)}
+                  className={`flex items-center gap-3 min-w-0 flex-1 ${canMutate ? 'cursor-pointer' : 'cursor-default'}`}
                 >
                   <div className="w-10 h-10 shrink-0 bg-slate-900 rounded-xl flex items-center justify-center text-yellow-500 font-black border border-slate-800 text-sm">
                     {emp.name[0]}
@@ -248,6 +272,8 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0 ml-2">
+                  {canMutate && (
+                    <>
                   <button
                     onClick={() => openEdit(emp)}
                     className="p-2 text-slate-600 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
@@ -260,6 +286,8 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
                   >
                     <Trash2 size={15} />
                   </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -295,7 +323,7 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
       )}
 
       {/* ── QUICK PAY MODAL ── */}
-      {showQuickPay && (
+      {showQuickPay && canMutate && (
         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/80">
           <div className="bg-slate-900 border border-emerald-500/20 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-md p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-5">
@@ -334,7 +362,7 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
       )}
 
       {/* ── ADD MODAL ── */}
-      {showAddModal && (
+      {showAddModal && canMutate && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/80">
           <div className="bg-slate-900 border border-slate-800 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
@@ -416,7 +444,7 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh }) => {
       )}
 
       {/* ── EDIT MODAL ── */}
-      {showEditModal && editEmp && (
+      {showEditModal && editEmp && canMutate && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center backdrop-blur-md bg-slate-950/80">
           <div className="bg-slate-900 border border-slate-800 rounded-t-[2rem] sm:rounded-[2rem] w-full sm:max-w-lg shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">

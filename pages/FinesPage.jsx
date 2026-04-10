@@ -4,6 +4,7 @@ import {
   ChevronDown, Ban, Clock, Filter
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 
 /* ─── So'mni formatlash ─── */
 const fmt = n => Number(n || 0).toLocaleString('uz-UZ');
@@ -11,7 +12,8 @@ const fmt = n => Number(n || 0).toLocaleString('uz-UZ');
 /* ═══════════════════════════════════════════
    FINES COMPONENT
 ═══════════════════════════════════════════ */
-const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefresh }) => {
+const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefresh, canMutate = true }) => {
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
   const [fines, setFines]           = useState(propFines);
   const [loading, setLoading]       = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +51,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
 
   /* ── Jarima qo'llash ── */
   const handleSubmit = async () => {
+  if (!canMutate) return;
   if (!empId || !amount || Number(amount) <= 0) return alert("Ma'lumotlarni to'ldiring!");
 
   setSubmitting(true);
@@ -78,6 +81,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
 
   /* ── Bekor qilish ── */
   const handleCancel = async (id) => {
+    if (!canMutate) return;
     if (!window.confirm("Bu jarimani bekor qilasizmi?")) return;
     setCancelId(id);
     try {
@@ -94,6 +98,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
 
   /* ── O'chirish (SUPER_ADMIN) ── */
   const handleDelete = async (id) => {
+    if (!canMutate || !isSuperAdmin) return;
     if (!window.confirm("Bu jarimani butunlay o'chirasizmi?")) return;
     setCancelId(id);
     try {
@@ -132,7 +137,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
 
   const totalActive    = fines.filter(f => f.status === 'ACTIVE').reduce((s, f) => s + Number(f.amount), 0);
   const totalCancelled = fines.filter(f => f.status === 'CANCELLED').reduce((s, f) => s + Number(f.amount), 0);
-  const activeEmps     = employees.filter(e => e.status === 'ACTIVE');
+  const activeEmps     = workforce.filter(e => e.status === 'ACTIVE');
 
   /* ── Tanlangan xodim jami jarima ── */
   const selectedEmpFine = useMemo(() => {
@@ -183,6 +188,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
       </div>
 
       {/* ══ JARIMA QO'LLASH FORMASI ══ */}
+      {canMutate && (
       <div className="bg-slate-950 rounded-2xl border border-slate-800 p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-8 h-8 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-center">
@@ -277,6 +283,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
           }
         </button>
       </div>
+      )}
 
       {/* ══ TOP JARIMALI XODIMLAR ══ */}
       {empFineStats.length > 0 && (
@@ -422,7 +429,7 @@ const Fines = ({ employees = [], fines: propFines = [], userRole, onLog, onRefre
                 </div>
 
                 {/* Tugmalar */}
-                {!isCancelled && (
+                {!isCancelled && canMutate && (
                   <div className="flex gap-1.5 shrink-0 ml-1">
                     {/* Bekor qilish */}
                     <button

@@ -27,7 +27,7 @@ const Login = ({ onLogin }) => {
     }
 
     try {
-      const res = await api.login({ email: cleanUsername, password: cleanPassword });
+      const res = await api.login({ login: cleanUsername, password: cleanPassword });
       onLogin(res.data);
       navigate('/');
     } catch (err) {

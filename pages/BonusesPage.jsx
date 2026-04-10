@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Gift, Trash2, Users, Search,
-  ChevronDown, Ban, Clock, Filter,
+  ChevronDown, Ban, Clock, Filter, Building2,
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 
 const fmt = n => Number(n || 0).toLocaleString('uz-UZ');
 
@@ -12,18 +13,21 @@ const rowStatus = b => {
   return u === 'CANCELLED' ? 'CANCELLED' : 'ACTIVE';
 };
 
-const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, onRefresh }) => {
+const Bonuses = ({ employees = [], objects = [], bonuses: propBonuses = [], userRole, onLog, onRefresh, canMutate = true }) => {
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
   const [bonuses, setBonuses]           = useState(propBonuses);
   const [loading, setLoading]           = useState(false);
   const [submitting, setSubmitting]     = useState(false);
   const [cancelId, setCancelId]         = useState(null);
 
   const [empId,   setEmpId]   = useState('');
+  const [objectId, setObjectId] = useState('');
   const [amount,  setAmount]  = useState('');
   const [comment, setComment] = useState('');
 
   const [search,        setSearch]        = useState('');
   const [filterEmp,     setFilterEmp]     = useState('');
+  const [filterObject,  setFilterObject]  = useState('');
   const [filterStatus,  setFilterStatus]  = useState('ACTIVE');
 
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
@@ -45,13 +49,17 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
   useEffect(() => { setBonuses(propBonuses); }, [propBonuses]);
 
   const handleSubmit = async () => {
-    if (!empId || !amount || Number(amount) <= 0) return alert("Ma'lumotlarni to'ldiring!");
+    if (!canMutate) return;
+    if (!empId || !objectId || !amount || Number(amount) <= 0) return alert("Ma'lumotlarni to'ldiring!");
 
     setSubmitting(true);
     try {
       const emp = employees.find(e => String(e._id || e.id) === String(empId));
+      const obj = objects.find(o => String(o._id || o.id) === String(objectId));
       await api.createBonus({
         employeeId: empId,
+        objectId,
+        objectName: obj?.name || '',
         amount: Number(amount),
         reason: comment.trim(),
         date: new Date().toISOString().split('T')[0],
@@ -61,6 +69,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
       onLog?.(`Bonus qo'llandi: ${fmt(amount)} UZS — ${emp?.name || ''}`);
 
       setEmpId('');
+      setObjectId('');
       setAmount('');
       setComment('');
 
@@ -74,6 +83,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
   };
 
   const handleCancel = async id => {
+    if (!canMutate) return;
     if (!window.confirm("Bu bonusni bekor qilasizmi?")) return;
     setCancelId(id);
     try {
@@ -89,6 +99,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
   };
 
   const handleDelete = async id => {
+    if (!canMutate || !isSuperAdmin) return;
     if (!window.confirm("Bu bonusni butunlay o'chirasizmi?")) return;
     setCancelId(id);
     try {
@@ -108,14 +119,15 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
       const st = rowStatus(b);
       const matchStatus = filterStatus === 'ALL' || st === filterStatus;
       const matchEmp    = !filterEmp || String(b.employeeId?._id || b.employeeId) === filterEmp;
+      const matchObj    = !filterObject || String(b.objectId?._id || b.objectId) === filterObject;
       const name        = b.employeeName || employees.find(e => String(e._id || e.id) === String(b.employeeId?._id || b.employeeId))?.name || '';
       const reason      = b.reason || b.comment || '';
       const matchSearch = !search
         || name.toLowerCase().includes(search.toLowerCase())
         || reason.toLowerCase().includes(search.toLowerCase());
-      return matchStatus && matchEmp && matchSearch;
+      return matchStatus && matchEmp && matchObj && matchSearch;
     });
-  }, [bonuses, filterStatus, filterEmp, search, employees]);
+  }, [bonuses, filterStatus, filterEmp, filterObject, search, employees]);
 
   const empBonusStats = useMemo(() => {
     const map = {};
@@ -135,7 +147,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
   const totalCancelled = bonuses
     .filter(b => rowStatus(b) === 'CANCELLED')
     .reduce((s, b) => s + Number(b.amount), 0);
-  const activeEmps = employees.filter(e => e.status === 'ACTIVE');
+  const activeEmps = workforce.filter(e => e.status === 'ACTIVE');
 
   const selectedEmpBonus = useMemo(() => {
     if (!empId) return 0;
@@ -194,6 +206,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
         </div>
       </div>
 
+      {canMutate && (
       <div className="bg-slate-950 rounded-2xl border border-slate-800 p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-8 h-8 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center">
@@ -228,6 +241,28 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
               Bu xodimning amaldagi bonuslar jami: {fmt(selectedEmpBonus)} UZS
             </p>
           )}
+        </div>
+
+        <div>
+          <label className="text-[8px] text-slate-500 font-black uppercase tracking-widest block mb-1.5">
+            Obyekt tanlang
+          </label>
+          <div className="relative">
+            <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+            <select
+              value={objectId}
+              onChange={e => setObjectId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-white pl-9 pr-4 py-3 rounded-xl font-bold text-sm outline-none transition-all appearance-none"
+            >
+              <option value="">— Obyektni tanlang —</option>
+              {objects.map(o => (
+                <option key={o._id || o.id} value={o._id || o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -278,7 +313,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || !empId || !amount}
+          disabled={submitting || !empId || !objectId || !amount}
           className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
         >
           {submitting
@@ -286,6 +321,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
             : <><Gift size={14} /> Bonus Qo&apos;llash</>}
         </button>
       </div>
+      )}
 
       {empBonusStats.length > 0 && (
         <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4">
@@ -321,7 +357,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
         <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
           <Filter size={11} /> Bonuslar filtri
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
             <input
@@ -341,6 +377,19 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
               <option value="">— Barcha xodimlar —</option>
               {activeEmps.map(e => (
                 <option key={e._id || e.id} value={e._id || e.id}>{e.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select
+              value={filterObject}
+              onChange={e => setFilterObject(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 focus:border-yellow-500 text-white px-3 py-2.5 rounded-xl font-bold text-sm outline-none transition-all appearance-none"
+            >
+              <option value="">— Barcha obyektlar —</option>
+              {objects.map(o => (
+                <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>
               ))}
             </select>
             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
@@ -398,6 +447,9 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
             const displayName = b.employeeName
               || employees.find(e => String(e._id || e.id) === String(b.employeeId?._id || b.employeeId))?.name
               || '—';
+            const objectDisplayName = b.objectName
+              || objects.find(o => String(o._id || o.id) === String(b.objectId?._id || b.objectId))?.name
+              || '—';
 
             return (
               <div
@@ -427,6 +479,9 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
                   <p className="text-slate-700 text-[8px] font-bold mt-0.5">
                     {date} • {b.createdBy || b.appliedBy || 'admin'}
                   </p>
+                  <p className="text-emerald-500 text-[8px] font-black uppercase mt-0.5">
+                    Obyekt: {objectDisplayName}
+                  </p>
                 </div>
 
                 <div className="text-right shrink-0">
@@ -436,7 +491,7 @@ const Bonuses = ({ employees = [], bonuses: propBonuses = [], userRole, onLog, o
                   <p className="text-[7px] text-slate-600 font-bold">UZS</p>
                 </div>
 
-                {!isCancelled && (
+                {!isCancelled && canMutate && (
                   <div className="flex gap-1.5 shrink-0 ml-1">
                     <button
                       type="button"

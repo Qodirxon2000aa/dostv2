@@ -1,11 +1,41 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CheckCircle2, CalendarCheck, XCircle, Building2, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../utils/api';
+import { filterWorkforceEmployees } from '../utils/employeeRoles';
 
-const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
+const Attendance = ({ employees, attendance, objects = [], onLog, userRole, onRefresh, canMutate = true }) => {
+  const workforce = useMemo(() => filterWorkforceEmployees(employees), [employees]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
+  /** { empId, record } — bor qilishdan oldin obyekt tanlash */
+  const [presentModal, setPresentModal] = useState(null);
+  const [objectPickId, setObjectPickId] = useState('');
+
+  const objectList = useMemo(
+    () => (Array.isArray(objects) ? objects : []).filter((o) => o && (o._id || o.id)),
+    [objects]
+  );
+
+  const openPresentModal = (empId, record) => {
+    if (objectList.length === 0) {
+      setError("Tizimda obyekt yo‘q. Avval «Obyektlar» bo‘limida obyekt qo‘shing.");
+      return;
+    }
+    const pre =
+      record?.objectId?._id != null
+        ? String(record.objectId._id)
+        : record?.objectId != null
+          ? String(record.objectId)
+          : '';
+    const preName = record?.objectName || '';
+    const match =
+      objectList.find((o) => String(o._id || o.id) === pre) ||
+      (preName ? objectList.find((o) => (o.name || '') === preName) : null);
+    const initial = match ? String(match._id || match.id) : '';
+    setObjectPickId(initial);
+    setPresentModal({ empId, record: record || null });
+  };
 
   const markAttendance = async (empId, status, extra = {}) => {
     setLoading(empId);
@@ -30,7 +60,7 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
 
       console.log('✅ Javob keldi:', response);
       
-      const emp = employees.find(e => e._id === empId || e.id === empId);
+      const emp = workforce.find((e) => e._id === empId || e.id === empId);
       const logMessage = `${emp?.name} - ${status === 'PRESENT' ? 'BOR' : "YO'Q"} deb tasdiqlandi`;
       onLog(logMessage);
       
@@ -49,6 +79,25 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
     } finally {
       setLoading(null);
     }
+  };
+
+  const confirmPresentWithObject = async () => {
+    if (!presentModal) return;
+    const { empId } = presentModal;
+    if (!objectPickId) {
+      setError('Iltimos, obyektni tanlang.');
+      return;
+    }
+    const obj = objectList.find((o) => String(o._id || o.id) === String(objectPickId));
+    if (!obj) {
+      setError('Obyekt topilmadi.');
+      return;
+    }
+    setPresentModal(null);
+    await markAttendance(empId, 'PRESENT', {
+      objectId: String(obj._id || obj.id),
+      objectName: obj.name || 'Nomaʼlum',
+    });
   };
 
   return (
@@ -70,6 +119,63 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
         </div>
       )}
 
+      {presentModal && canMutate && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ background: 'rgba(2, 6, 23, 0.88)', backdropFilter: 'blur(8px)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPresentModal(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-[2rem] border border-emerald-500/30 bg-slate-950 p-6 shadow-2xl shadow-emerald-900/20">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                <Building2 className="text-emerald-400" size={22} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400/90">Obyekt tanlang</p>
+                <p className="text-white font-black text-lg">
+                  {workforce.find((e) => (e._id || e.id) === presentModal.empId)?.name || 'Xodim'}
+                </p>
+                <p className="text-[10px] text-slate-500 font-bold mt-0.5">{selectedDate}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mb-3 font-medium leading-relaxed">
+              Ishlagan kun qaysi obyekt bo‘yicha ekanini tanlang — davomat shu obyektga bog‘lanadi.
+            </p>
+            <label className="block text-[10px] font-black uppercase text-slate-500 mb-2">Obyekt</label>
+            <select
+              value={objectPickId}
+              onChange={(e) => setObjectPickId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3.5 text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500/40 mb-6"
+            >
+              <option value="">— Tanlang —</option>
+              {objectList.map((o) => (
+                <option key={o._id || o.id} value={String(o._id || o.id)}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPresentModal(null)}
+                className="flex-1 py-3.5 rounded-2xl border border-slate-700 text-slate-300 font-black text-xs uppercase hover:bg-slate-900 transition-colors"
+              >
+                Bekor
+              </button>
+              <button
+                type="button"
+                onClick={confirmPresentWithObject}
+                className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase shadow-lg shadow-emerald-900/30 transition-colors"
+              >
+                Bor qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sarlavha */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-950 p-6 rounded-[2.5rem] border border-slate-800">
         <div>
@@ -77,7 +183,7 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
             DAVOMAT <span className="text-yellow-500 underline">SO'ROVLARI</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
-            Xodimlardan kelgan tasdiqlar
+            Faqat ishchilar — administratorlar nazoratchi, davomatda chiqmaydi
           </p>
         </div>
         <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl border border-slate-800">
@@ -93,12 +199,12 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
 
       {/* Xodimlar ro'yxati */}
       <div className="grid gap-4">
-        {employees.length === 0 ? (
+        {workforce.length === 0 ? (
           <div className="text-center py-12 text-slate-500">
             <p className="font-black uppercase text-sm">Xodimlar topilmadi</p>
           </div>
         ) : (
-          employees.map((emp) => {
+          workforce.map((emp) => {
             const empId = emp._id || emp.id;
             const record = attendance.find(
               (a) => (a.employeeId?._id || a.employeeId) === empId && a.date === selectedDate
@@ -154,11 +260,10 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
                 </div>
 
                 <div className="flex items-center gap-3 mt-6 md:mt-0 w-full md:w-auto">
+                  {canMutate ? (
+                    <>
                   <button
-                    onClick={() => markAttendance(empId, 'PRESENT', {
-                      objectId: record?.objectId,
-                      objectName: record?.objectName,
-                    })}
+                    onClick={() => openPresentModal(empId, record)}
                     disabled={isLoading}
                     className={`flex-1 md:flex-none px-8 py-4 rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
                       isPresent 
@@ -190,6 +295,12 @@ const Attendance = ({ employees, attendance, onLog, userRole, onRefresh }) => {
                     )}
                     YO'Q
                   </button>
+                    </>
+                  ) : (
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-wide px-2">
+                      {isPresent ? 'BOR' : isAbsent ? "YO'Q" : isPending ? 'KUTILMOQDA' : '—'}
+                    </div>
+                  )}
                 </div>
               </div>
             );

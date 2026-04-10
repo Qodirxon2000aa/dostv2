@@ -132,6 +132,9 @@ const UmumiyHisobModal = ({
   const positiveCount = computedStats.filter(e => e.remaining > 0).length;
   const negativeCount = computedStats.filter(e => e.remaining < 0).length;
   const maxRemaining = Math.max(...computedStats.map(e => Math.abs(e.remaining)), 1);
+  const selectedObjectName = selectedObjectId
+    ? (objects || []).find(o => String(o._id || o.id) === String(selectedObjectId))?.name || ''
+    : '';
 
   return (
     <div
@@ -229,6 +232,16 @@ const UmumiyHisobModal = ({
               <span className="text-[8px] text-slate-400 font-black uppercase">{computedStats.length} ta xodim</span>
             </div>
           </div>
+          {selectedObjectId && (
+            <div className="bg-violet-500/10 border border-violet-500/25 rounded-xl px-3 py-2">
+              <p className="text-[8px] text-violet-300 font-black uppercase tracking-wider">
+                Tanlangan obyekt: {selectedObjectName || 'Noma`lum'}
+              </p>
+              <p className="text-[8px] text-slate-400 font-bold mt-0.5">
+                Quyida har ishchi uchun shu obyektdagi hisoblangan, berilgan va qolgan summa ko'rsatiladi.
+              </p>
+            </div>
+          )}
 
           {/* Obyekt va sana filtrlari */}
           <div className="space-y-2">
@@ -411,6 +424,34 @@ const UmumiyHisobModal = ({
                       <p className={`font-black text-[10px] ${s.color}`}>{s.val}</p>
                     </div>
                   ))}
+                </div>
+                <div className="mb-3 bg-slate-900/70 border border-slate-800 rounded-xl px-3 py-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[8px] text-emerald-400 font-black uppercase">
+                      Berilishi kerak
+                    </span>
+                    <span className="text-emerald-400 font-black text-xs">
+                      {Math.max(remaining, 0).toLocaleString()} UZS
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[8px] text-yellow-500 font-black uppercase">
+                      Berilgan
+                    </span>
+                    <span className="text-yellow-500 font-black text-xs">
+                      {totalTaken.toLocaleString()} UZS
+                    </span>
+                  </div>
+                  {remaining < 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] text-rose-400 font-black uppercase">
+                        Ortiqcha berilgan
+                      </span>
+                      <span className="text-rose-400 font-black text-xs">
+                        {Math.abs(remaining).toLocaleString()} UZS
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

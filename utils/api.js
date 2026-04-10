@@ -1,7 +1,7 @@
 // api.js — Vite: .env da VITE_API_URL=http://localhost:5000/api (oxirida bo'sh joy bo'lmasin)
 const BASE_URL = (() => {
   const fromEnv = String(import.meta.env.VITE_API_URL ?? '').trim();
-  return fromEnv || 'http://localhost:5001/api';
+  return fromEnv || 'https://nodirkhanov.uz/api';
 })();
 
 const getToken = () => {
@@ -13,12 +13,26 @@ const getToken = () => {
   }
 };
 
+/** Admin panel read-only tekshiruvi uchun (server X-User-Role bilan) */
+const getRoleHeaders = () => {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    if (!raw) return {};
+    const u = JSON.parse(raw);
+    if (!u?.role) return {};
+    return { 'X-User-Role': String(u.role) };
+  } catch {
+    return {};
+  }
+};
+
 const request = async (method, path, body = null) => {
   const token = getToken();
   const options = {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...getRoleHeaders(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };
@@ -75,6 +89,9 @@ export const api = {
   createObject:    (body)     => request('POST',   '/objects', body),
   deleteObject:    (id)       => request('DELETE', `/objects/${id}`),
   addObjectIncome: (id, body) => request('PATCH',  `/objects/${id}/income`, body),
+  addObjectWithdrawal: (id, body) => request('PATCH', `/objects/${id}/withdrawal`, body),
+  updateObjectWithdrawal: (id, wid, body) => request('PUT', `/objects/${id}/withdrawal/${wid}`, body),
+  deleteObjectWithdrawal: (id, wid) => request('DELETE', `/objects/${id}/withdrawal/${wid}`),
 
   // ── Fines (Jarimalar) ─────────────────────────────────────────
   getFines:   ()     => request('GET',    '/fines'),
@@ -105,8 +122,32 @@ export const api = {
   // Agar kerak bo'lsa qo'shimcha metodlar:
   // approveBonus:   (id)       => request('PATCH',  `/bonuses/${id}/approve`),
 
+  // ── Notifications (Xabarnomalar) ────────────────────────────
+  getNotifications: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request('GET', `/notifications${q ? '?' + q : ''}`);
+  },
+  createNotification: (body) => request('POST', '/notifications', body),
+  markNotificationRead: (id) => request('PATCH', `/notifications/${id}/read`),
+
+  // ── Support chat (xodim ↔ admin) ───────────────────────────────
+  getSupportMessages: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request('GET', `/support-chat/messages${q ? '?' + q : ''}`);
+  },
+  sendSupportMessage: (body) => request('POST', '/support-chat/messages', body),
+  markSupportRead: (body) => request('PATCH', '/support-chat/read', body),
+  getSupportConversations: () => request('GET', '/support-chat/conversations'),
+  getSupportUnreadEmployee: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request('GET', `/support-chat/unread-employee${q ? '?' + q : ''}`);
+  },
+
   // ── Logs ──────────────────────────────────────────────────────
-  getLogs: () => request('GET', '/logs'),
+  getLogs: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request('GET', `/logs${q ? '?' + q : ''}`);
+  },
   createLog: (action, performer = 'Sistema') => {
     if (!action || !String(action).trim()) {
       console.warn("createLog: action bo'sh — yuborilmadi");

@@ -311,7 +311,7 @@ const HistoryBlock = ({ mat }) => {
 };
 
 // ════════════════════════════════════════════════════════════════════
-const Warehouse = ({ objects = [], currentUser }) => {
+const Warehouse = ({ objects = [], currentUser, canMutate = true }) => {
   const [selectedObjectId, setSelectedObjectId] = useState('');
   const [materials, setMaterials]               = useState([]);
   const [loading, setLoading]                   = useState(false);
@@ -413,9 +413,13 @@ const Warehouse = ({ objects = [], currentUser }) => {
   };
   const isExpanded = (id) => expandedRows.includes(String(id));
 
-  const logAction = (action) => api.createLog(action, performer).catch(() => {});
+  const logAction = (action) => {
+    if (!canMutate) return;
+    api.createLog(action, performer).catch(() => {});
+  };
 
   const handleAdd = async () => {
+    if (!canMutate) return;
     if (!addForm.supplierId)                               { setAddError('Beruvchini tanlang!'); return; }
     if (!addForm.name.trim())                               { setAddError("Nomni kiriting!"); return; }
     if (!addForm.supplied || Number(addForm.supplied) <= 0) { setAddError("Miqdorni kiriting!"); return; }
@@ -448,6 +452,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
   };
 
   const handleUse = async () => {
+    if (!canMutate) return;
     const qty = parseFloat(useForm.quantity);
     if (!qty || qty <= 0)            { setUseError("Miqdorni kiriting!"); return; }
     if (qty > selectedMat.remaining) { setUseError(`Qoldiq yetarli emas! Maks: ${selectedMat.remaining} ${selectedMat.unit}`); return; }
@@ -463,6 +468,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
   };
 
   const handleRestock = async () => {
+    if (!canMutate) return;
     const qty = parseFloat(restockForm.quantity);
     const restockSum = Number(restockForm.amount);
     if (!qty || qty <= 0)         { setRestockError("Miqdorni kiriting!"); return; }
@@ -488,6 +494,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
   };
 
   const handleDelete = async (id, name) => {
+    if (!canMutate) return;
     if (!window.confirm(`"${name}" ni o'chirmoqchimisiz?`)) return;
     setDeleteLoadingId(id);
     try {
@@ -499,8 +506,8 @@ const Warehouse = ({ objects = [], currentUser }) => {
     finally { setDeleteLoadingId(null); }
   };
 
-  const openUse     = (mat) => { setSelectedMat(mat); setUseForm({ quantity: '', note: '' }); setUseError(''); setModal('use'); };
-  const openRestock = (mat) => { setSelectedMat(mat); setRestockForm({ quantity: '', amount: '', date: getTodayDate(), note: '' }); setRestockError(''); setModal('restock'); };
+  const openUse     = (mat) => { if (!canMutate) return; setSelectedMat(mat); setUseForm({ quantity: '', note: '' }); setUseError(''); setModal('use'); };
+  const openRestock = (mat) => { if (!canMutate) return; setSelectedMat(mat); setRestockForm({ quantity: '', amount: '', date: getTodayDate(), note: '' }); setRestockError(''); setModal('restock'); };
   const openHistory = (mat) => { setSelectedMat(mat); setModal('history'); };
   const closeModal  = () => {
     setModal(null); setSelectedMat(null); setCheckMaterial(null);
@@ -552,6 +559,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
             </button>
             <button type="button"
               onClick={() => {
+                if (!canMutate) return;
                 setAddForm(() => {
                   const stored = getStoredSupplierId();
                   const linked = suppliersForWarehouse.some(
@@ -573,7 +581,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
                 fetchSuppliers();
                 setModal('add');
               }}
-              disabled={!selectedObjectId}
+              disabled={!selectedObjectId || !canMutate}
               className="flex-1 sm:flex-none min-h-[44px] px-3 sm:px-5 rounded-xl bg-yellow-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wide hover:bg-yellow-400 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/15 whitespace-nowrap">
               <Plus size={18} />
               <span className="truncate">Material qo&apos;shish</span>
@@ -771,12 +779,12 @@ const Warehouse = ({ objects = [], currentUser }) => {
                         )}
 
                         <div className="p-4 pt-0 grid grid-cols-2 gap-2">
-                          <button type="button" onClick={() => openUse(mat)}
-                            className="min-h-[44px] rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 font-black text-xs uppercase flex items-center justify-center gap-1.5 active:scale-[0.98]">
+                          <button type="button" onClick={() => openUse(mat)} disabled={!canMutate}
+                            className="min-h-[44px] rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 font-black text-xs uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none">
                             <ArrowDownToLine size={15} /> Ishlatish
                           </button>
-                          <button type="button" onClick={() => openRestock(mat)}
-                            className="min-h-[44px] rounded-xl bg-yellow-500/15 border border-yellow-500/25 text-yellow-500 font-black text-xs uppercase flex items-center justify-center gap-1.5 active:scale-[0.98]">
+                          <button type="button" onClick={() => openRestock(mat)} disabled={!canMutate}
+                            className="min-h-[44px] rounded-xl bg-yellow-500/15 border border-yellow-500/25 text-yellow-500 font-black text-xs uppercase flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none">
                             <RotateCcw size={15} /> Kirim
                           </button>
                           <button type="button" onClick={() => openHistory(mat)}
@@ -787,7 +795,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
                             className="min-h-[44px] rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-black text-xs uppercase flex items-center justify-center gap-1.5 active:scale-[0.98]">
                             <Receipt size={15} /> Chek
                           </button>
-                          <button type="button" onClick={() => handleDelete(mid, mat.name)} disabled={deleteLoadingId === mid}
+                          <button type="button" onClick={() => handleDelete(mid, mat.name)} disabled={deleteLoadingId === mid || !canMutate}
                             className="min-h-[44px] rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 font-black text-xs uppercase flex items-center justify-center active:scale-[0.98] disabled:opacity-50 col-span-2">
                             {deleteLoadingId === mid ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
                           </button>
@@ -869,12 +877,12 @@ const Warehouse = ({ objects = [], currentUser }) => {
 
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-1.5 justify-end">
-                                  <button type="button" onClick={() => openUse(mat)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs font-black uppercase hover:bg-emerald-500/25 transition-colors">
+                                  <button type="button" onClick={() => openUse(mat)} disabled={!canMutate}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs font-black uppercase hover:bg-emerald-500/25 transition-colors disabled:opacity-40">
                                     <ArrowDownToLine size={12} /> Ishlatish
                                   </button>
-                                  <button type="button" onClick={() => openRestock(mat)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-yellow-500/15 text-yellow-500 text-xs font-black uppercase hover:bg-yellow-500/25 transition-colors">
+                                  <button type="button" onClick={() => openRestock(mat)} disabled={!canMutate}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-yellow-500/15 text-yellow-500 text-xs font-black uppercase hover:bg-yellow-500/25 transition-colors disabled:opacity-40">
                                     <RotateCcw size={12} /> Kirim
                                   </button>
                                   <button type="button" onClick={() => openHistory(mat)}
@@ -885,7 +893,7 @@ const Warehouse = ({ objects = [], currentUser }) => {
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-black uppercase hover:bg-amber-500/25 transition-colors">
                                     <Receipt size={12} /> Chek
                                   </button>
-                                  <button type="button" onClick={() => handleDelete(mid, mat.name)} disabled={deleteLoadingId === mid}
+                                  <button type="button" onClick={() => handleDelete(mid, mat.name)} disabled={deleteLoadingId === mid || !canMutate}
                                     className="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors disabled:opacity-50">
                                     {deleteLoadingId === mid ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
                                   </button>

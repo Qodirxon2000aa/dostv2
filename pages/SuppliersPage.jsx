@@ -7,7 +7,7 @@ import { api } from '../utils/api';
 
 const normId = (x) => String(x._id || x.id || '');
 
-const SuppliersPage = ({ objects = [] }) => {
+const SuppliersPage = ({ objects = [], canMutate = true }) => {
   const [suppliers, setSuppliers]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
@@ -49,6 +49,7 @@ const SuppliersPage = ({ objects = [] }) => {
   };
 
   const handleCreate = async () => {
+    if (!canMutate) return;
     const nm = name.trim();
     const ph = phone.trim();
     if (!nm) { setError('Ismni kiriting'); return; }
@@ -73,6 +74,7 @@ const SuppliersPage = ({ objects = [] }) => {
   };
 
   const startEdit = (s) => {
+    if (!canMutate) return;
     setEditingId(s._id);
     setEditName(s.name || '');
     setEditPhone(s.phone || '');
@@ -88,6 +90,7 @@ const SuppliersPage = ({ objects = [] }) => {
   };
 
   const handleSaveEdit = async () => {
+    if (!canMutate) return;
     const nm = editName.trim();
     const ph = editPhone.trim();
     if (!nm || !ph) return;
@@ -109,6 +112,7 @@ const SuppliersPage = ({ objects = [] }) => {
   };
 
   const handleDelete = async (id) => {
+    if (!canMutate) return;
     if (!window.confirm('Beruvchini o‘chirmoqchimisiz?')) return;
     setDeleteId(id);
     setError('');
@@ -214,6 +218,7 @@ const SuppliersPage = ({ objects = [] }) => {
         </div>
       )}
 
+      {canMutate && (
       <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5 space-y-4">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Yangi beruvchi</p>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -237,6 +242,7 @@ const SuppliersPage = ({ objects = [] }) => {
           Qoʻshish
         </button>
       </div>
+      )}
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between gap-2">
@@ -288,6 +294,7 @@ const SuppliersPage = ({ objects = [] }) => {
                         {supplierLinkLabel(s)}
                       </div>
                     </div>
+                    {canMutate && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
@@ -305,6 +312,7 @@ const SuppliersPage = ({ objects = [] }) => {
                         {deleteId === s._id ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
                       </button>
                     </div>
+                    )}
                   </div>
                 )}
               </li>

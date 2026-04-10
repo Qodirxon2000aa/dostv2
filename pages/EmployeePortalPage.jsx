@@ -1,20 +1,55 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   CheckCircle2, BadgeDollarSign, Wallet,
   Building2, ChevronDown, Clock, X, TrendingUp,
-  CalendarDays, BarChart3, Banknote, Info, AlertTriangle, Gift,
+  CalendarDays, BarChart3, Banknote, Info, AlertTriangle, Gift, Bell,
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { ensureRealtimeSocket } from '../utils/realtime';
 import { bonusIsActive } from '../components/payroll/payrollBonusUtils';
+import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
 
 const MONTH_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
 
-const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines = [], bonuses = [], onRefresh }) => {
+/** Xabar qachon kelgani — daqiqa/soat (ishchi kabinet banneri) */
+const formatMinutesAgoLabel = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const totalMins = Math.floor(diffMs / 60000);
+  if (totalMins < 1) return 'Hozirgina kelgan';
+  if (totalMins < 60) return `${totalMins} daqiqa oldin kelgan`;
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h < 24) {
+    return m > 0 ? `${h} soat ${m} daqiqa oldin kelgan` : `${h} soat oldin kelgan`;
+  }
+  const days = Math.floor(h / 24);
+  return `${days} kun oldin kelgan`;
+};
+
+const EmployeePortal = ({
+  user,
+  employees,
+  attendance,
+  payroll,
+  objects,
+  fines = [],
+  bonuses = [],
+  onRefresh,
+  supportChatEnabled = false,
+}) => {
   const [loading, setLoading]                   = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState('');
   const [activeTab, setActiveTab]               = useState('history');
   const [expandedObj, setExpandedObj]           = useState(null);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [myNotifications, setMyNotifications] = useState([]);
+  const [incomingToast, setIncomingToast] = useState(null);
+  const [cabinetUnreadBanner, setCabinetUnreadBanner] = useState(null);
+  const [cabinetTimePulse, setCabinetTimePulse] = useState(0);
+  const dismissedCabinetUnreadRef = useRef(new Set());
 
   const employeeData = useMemo(() => {
     if (!user || !employees.length) return null;
@@ -34,6 +69,123 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
   }, [employees, user]);
 
   const targetId = employeeData?._id || employeeData?.uid || null;
+
+  useEffect(() => {
+    dismissedCabinetUnreadRef.current = new Set();
+    setCabinetUnreadBanner(null);
+  }, [targetId]);
+
+  const loadMyNotifications = useCallback(async () => {
+    if (!targetId) {
+      setMyNotifications([]);
+      return;
+    }
+    try {
+      const res = await api.getNotifications({ employeeId: targetId, limit: 200 });
+      const raw = res.data ?? [];
+      setMyNotifications(Array.isArray(raw) ? raw : []);
+    } catch (e) {
+      console.error('Xabarnomalar yuklanmadi:', e);
+    }
+  }, [targetId]);
+
+  useEffect(() => {
+    loadMyNotifications();
+  }, [loadMyNotifications]);
+
+  useEffect(() => {
+    if (!targetId) return;
+    const t = setInterval(loadMyNotifications, 45000);
+    return () => clearInterval(t);
+  }, [targetId, loadMyNotifications]);
+
+  useEffect(() => {
+    if (!incomingToast) return undefined;
+    const t = setTimeout(() => setIncomingToast(null), 7500);
+    return () => clearTimeout(t);
+  }, [incomingToast]);
+
+  useEffect(() => {
+    if (!targetId) return undefined;
+    const s = ensureRealtimeSocket();
+    if (!s) return undefined;
+    s.emit('join-employee', { employeeId: String(targetId) });
+    const onNew = (doc) => {
+      if (!doc) return;
+      setMyNotifications((prev) => {
+        const id = doc._id ?? doc.id;
+        if (id != null && prev.some((p) => String(p._id || p.id) === String(id))) return prev;
+        return [doc, ...prev];
+      });
+      setIncomingToast({
+        message: doc.message,
+        createdBy: doc.createdBy,
+      });
+    };
+    s.on('notification:new', onNew);
+    return () => {
+      s.off('notification:new', onNew);
+    };
+  }, [targetId]);
+
+  useEffect(() => {
+    if (!targetId) {
+      setCabinetUnreadBanner(null);
+      return;
+    }
+    const unread = myNotifications.filter((n) => !n.read);
+    if (unread.length === 0) {
+      setCabinetUnreadBanner(null);
+      return;
+    }
+    const latest = [...unread].sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    )[0];
+    const nid = String(latest._id || latest.id);
+    if (dismissedCabinetUnreadRef.current.has(nid)) {
+      setCabinetUnreadBanner(null);
+      return;
+    }
+    setCabinetUnreadBanner({
+      id: nid,
+      message: latest.message,
+      createdBy: latest.createdBy,
+      createdAt: latest.createdAt,
+      raw: latest,
+    });
+  }, [myNotifications, targetId]);
+
+  useEffect(() => {
+    if (!cabinetUnreadBanner) return undefined;
+    const t = setInterval(() => setCabinetTimePulse((p) => p + 1), 30000);
+    return () => clearInterval(t);
+  }, [cabinetUnreadBanner]);
+
+  const cabinetTimeLabel = useMemo(
+    () =>
+      cabinetUnreadBanner
+        ? formatMinutesAgoLabel(cabinetUnreadBanner.createdAt)
+        : '',
+    [cabinetUnreadBanner, cabinetTimePulse]
+  );
+
+  const unreadNotifications = useMemo(
+    () => myNotifications.filter((n) => !n.read).length,
+    [myNotifications]
+  );
+
+  const handleNotifRead = async (n) => {
+    const id = n._id || n.id;
+    if (!id || n.read) return;
+    try {
+      await api.markNotificationRead(id);
+      setMyNotifications((prev) =>
+        prev.map((x) => ((x._id || x.id) === id ? { ...x, read: true, readAt: new Date().toISOString() } : x))
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const myAttendance = useMemo(() => {
     if (!targetId) return [];
@@ -162,6 +314,8 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
     @media(max-width:320px){.ep-wrap{padding-left:max(6px, env(safe-area-inset-left, 0px));padding-right:max(6px, env(safe-area-inset-right, 0px));}}
     @media(min-width:361px) and (max-width:480px){.ep-wrap{padding-left:max(10px, env(safe-area-inset-left, 0px));padding-right:max(10px, env(safe-area-inset-right, 0px));}}
     @media(min-width:481px){.ep-wrap{max-width:500px;padding:20px 16px max(80px, calc(64px + env(safe-area-inset-bottom, 0px)));gap:14px;}}
+    .ep-wrap--banner-open{padding-top:max(7.5rem,calc(5.25rem + env(safe-area-inset-top, 0px)));}
+    @media(max-width:420px){.ep-wrap--banner-open{padding-top:max(11.75rem,calc(8rem + env(safe-area-inset-top, 0px)));}}
     @media(max-height:520px) and (orientation:landscape){.ep-wrap{padding-bottom:max(1rem, env(safe-area-inset-bottom, 0px));}.ep-list{max-height:min(40vh, 280px);}}
     .ep-list{max-height:400px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .ep-list::-webkit-scrollbar{width:3px;} .ep-list::-webkit-scrollbar-thumb{background:#334155;border-radius:10px;}
@@ -174,7 +328,126 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
   return (
     <>
       <style>{css}</style>
-      <div className="ep-wrap">
+      {cabinetUnreadBanner && (
+        <div
+          className="rt-emp-banner-shell fixed inset-x-0 z-[164] flex justify-center pointer-events-none"
+          style={{ top: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="pointer-events-auto rt-emp-banner-card rt-emp-banner-enter rounded-2xl overflow-hidden border border-amber-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950/98 backdrop-blur-xl">
+            <div className="flex gap-0 min-h-0">
+              <div className="w-[3px] sm:w-1 shrink-0 bg-gradient-to-b from-amber-300 via-amber-500 to-orange-600" aria-hidden />
+              <div className="flex-1 min-w-0 py-2.5 sm:py-3 pl-2.5 pr-2 sm:pl-3">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-400/30 shadow-[0_0_20px_-4px_rgba(251,191,36,0.35)]">
+                      <Bell className="text-amber-300" size={17} strokeWidth={2.25} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.12em] text-amber-300/95 leading-tight">
+                        O‘qilmagan xabar
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-amber-100/75 font-semibold mt-0.5 flex items-center gap-1">
+                        <Clock size={11} className="text-amber-400/90 shrink-0" />
+                        <span>{cabinetTimeLabel}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissedCabinetUnreadRef.current.add(cabinetUnreadBanner.id);
+                      setCabinetUnreadBanner(null);
+                    }}
+                    className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800/95 hover:bg-slate-700 border border-slate-700/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    aria-label="Yopish"
+                  >
+                    <X size={15} strokeWidth={2.5} />
+                  </button>
+                </div>
+                <p className="text-slate-50 text-[13px] sm:text-[14px] leading-snug font-semibold pr-0.5 line-clamp-4 sm:line-clamp-none">
+                  {cabinetUnreadBanner.message}
+                </p>
+                {cabinetUnreadBanner.createdBy && (
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium mt-1.5 sm:mt-2">
+                    Kimdan:{' '}
+                    <span className="text-amber-200/90 font-semibold">{cabinetUnreadBanner.createdBy}</span>
+                  </p>
+                )}
+                <div className="rt-emp-banner-actions mt-2.5 sm:mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleNotifRead(cabinetUnreadBanner.raw)}
+                    className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all shadow-lg shadow-emerald-900/30"
+                  >
+                    <CheckCircle2 size={14} />
+                    O‘qilgan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissedCabinetUnreadRef.current.add(cabinetUnreadBanner.id);
+                      setCabinetUnreadBanner(null);
+                      setActiveTab('messages');
+                    }}
+                    className="py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/80 text-slate-100 text-[10px] sm:text-[11px] font-black uppercase tracking-wide active:scale-[0.98] transition-all"
+                  >
+                    Barchasini ko‘rish
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {incomingToast && (
+        <div
+          className="rt-emp-toast-shell rt-emp-toast-shell--bottom fixed inset-x-0 z-[165] flex justify-center pointer-events-none"
+          style={{ bottom: 'max(5.25rem, calc(68px + env(safe-area-inset-bottom, 0px)))' }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="pointer-events-auto rt-emp-toast-card rt-emp-toast-enter ep-notif-card rounded-2xl overflow-hidden border border-yellow-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950/98 backdrop-blur-xl">
+            <div className="flex gap-0 min-h-0">
+              <div className="w-[3px] sm:w-1 shrink-0 bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-700" aria-hidden />
+              <div className="flex-1 min-w-0 py-2.5 sm:py-3 pl-2.5 pr-2 sm:pl-3">
+                <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-yellow-500/12 border border-yellow-500/25 shadow-[0_0_18px_-5px_rgba(234,179,8,0.35)]">
+                      <Bell className="text-yellow-300" size={17} strokeWidth={2.25} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.12em] text-yellow-300/95 leading-tight">
+                        Yangi xabar
+                      </p>
+                      <p className="text-[9px] text-slate-500 font-semibold mt-0.5">Rahbariyatdan</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncomingToast(null)}
+                    className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800/95 hover:bg-slate-700 border border-slate-700/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    aria-label="Yopish"
+                  >
+                    <X size={15} strokeWidth={2.5} />
+                  </button>
+                </div>
+                <p className="text-slate-50 text-[14px] sm:text-[15px] leading-snug font-semibold pr-0.5 line-clamp-5 sm:line-clamp-none">
+                  {incomingToast.message}
+                </p>
+                {incomingToast.createdBy && (
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-2 pt-2 border-t border-slate-800/80">
+                    <span className="text-slate-600">Kimdan:</span>{' '}
+                    <span className="text-yellow-200/90 font-semibold">{incomingToast.createdBy}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={`ep-wrap${cabinetUnreadBanner ? ' ep-wrap--banner-open' : ''}`}>
 
         {/* 1. HEADER */}
         <div className="ep-padcard bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl">
@@ -343,15 +616,18 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
             { key:'days',    label:'Davomat',    icon:<CheckCircle2 size={13}/> },
             { key:'fines',   label:'Jarimalar',  icon:<AlertTriangle size={13}/>, badge: myActiveFines.length, accent: 'fines' },
             { key:'bonuses', label:'Bonuslar',   icon:<Gift size={13}/>, badge: myActiveBonuses.length, accent: 'bonuses' },
+            { key:'messages', label:'Xabarlar', icon:<Bell size={13}/>, badge: unreadNotifications, accent: 'messages' },
           ].map(tab => (
             <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
               className={`shrink-0 flex-1 min-w-[3.25rem] flex items-center justify-center gap-0.5 py-2 px-0.5 rounded-lg font-black uppercase transition-all active:scale-95 relative ${
                 activeTab === tab.key
                   ? tab.accent === 'fines' ? 'bg-rose-600 text-white'
                     : tab.accent === 'bonuses' ? 'bg-emerald-600 text-white'
+                    : tab.accent === 'messages' ? 'bg-sky-600 text-white'
                     : 'bg-yellow-500 text-slate-950'
                   : tab.accent === 'fines' && myActiveFines.length > 0 ? 'text-rose-400 hover:bg-rose-500/10 border border-rose-500/20'
                   : tab.accent === 'bonuses' && myActiveBonuses.length > 0 ? 'text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20'
+                  : tab.accent === 'messages' && unreadNotifications > 0 ? 'text-sky-400 hover:bg-sky-500/10 border border-sky-500/20'
                   : 'text-slate-500 hover:text-white hover:bg-slate-900'
               }`} style={{fontSize:8}}>
               {tab.icon}<span className="truncate max-w-[4.2rem] sm:max-w-none">{tab.label}</span>
@@ -359,7 +635,9 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
                 <span className={`absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded-full text-[7px] font-black flex items-center justify-center ${
                   activeTab === tab.key
                     ? 'bg-white/30 text-white'
-                    : tab.accent === 'bonuses' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                    : tab.accent === 'bonuses' ? 'bg-emerald-500 text-white'
+                    : tab.accent === 'messages' ? 'bg-sky-500 text-white'
+                    : 'bg-rose-500 text-white'
                 }`}>
                   {tab.badge}
                 </span>
@@ -687,9 +965,83 @@ const EmployeePortal = ({ user, employees, attendance, payroll, objects, fines =
             </div>
           </div>
         )}
+
+        {activeTab === 'messages' && (
+          <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bell className="text-sky-400 shrink-0" size={16} />
+                <h3 className="text-white font-black uppercase text-xs tracking-widest italic truncate">Xabarlar</h3>
+              </div>
+              <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg shrink-0">
+                {unreadNotifications > 0 ? `${unreadNotifications} o‘qilmagan` : `${myNotifications.length} ta`}
+              </span>
+            </div>
+            <div className="ep-list divide-y divide-slate-900">
+              {myNotifications.length === 0 ? (
+                <div className="py-14 text-center px-4">
+                  <Bell className="text-slate-800 mx-auto mb-2" size={28} />
+                  <p className="text-slate-700 font-black uppercase text-xs">Hozircha xabar yo‘q</p>
+                </div>
+              ) : (
+                myNotifications.map((n) => {
+                  const nid = n._id || n.id;
+                  const when = n.createdAt
+                    ? new Date(n.createdAt).toLocaleString('uz-UZ', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                      })
+                    : '—';
+                  return (
+                    <button
+                      key={nid}
+                      type="button"
+                      onClick={() => handleNotifRead(n)}
+                      className={`w-full text-left px-4 py-3.5 transition-colors ${
+                        n.read ? 'hover:bg-slate-900/30' : 'bg-sky-500/5 hover:bg-sky-500/10 border-l-2 border-sky-500'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span
+                          className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                            n.read
+                              ? 'text-slate-500 bg-slate-800 border-slate-700'
+                              : 'text-sky-400 bg-sky-500/10 border-sky-500/30'
+                          }`}
+                        >
+                          {n.read ? 'O‘qilgan' : 'Yangi'}
+                        </span>
+                        <span className="text-[7px] text-slate-600 font-bold tabular-nums shrink-0">{when}</span>
+                      </div>
+                      <p className="text-white text-sm font-bold leading-snug break-words">{n.message}</p>
+                      {(n.createdBy || n.employeeName) && (
+                        <p className="text-[7px] text-slate-600 font-bold mt-1">
+                          {n.createdBy ? `Kimdan: ${n.createdBy}` : ''}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══ BALANS TO'LIQ MODAL ══ */}
+      {supportChatEnabled && targetId && employeeData && (
+        <EmployeeSupportChatWidget
+          employeeId={targetId}
+          senderName={employeeData.name}
+          enabled
+        />
+      )}
+
       {showBalanceModal && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center"
           style={{background:'rgba(2,6,23,0.92)',backdropFilter:'blur(10px)'}}
