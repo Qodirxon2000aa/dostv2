@@ -136,6 +136,8 @@ export const api = {
     return request('GET', `/support-chat/messages${q ? '?' + q : ''}`);
   },
   sendSupportMessage: (body) => request('POST', '/support-chat/messages', body),
+  updateSupportMessage: (id, body) => request('PATCH', `/support-chat/messages/${id}`, body),
+  deleteSupportMessage: (id, body) => request('DELETE', `/support-chat/messages/${id}`, body),
   markSupportRead: (body) => request('PATCH', '/support-chat/read', body),
   getSupportConversations: () => request('GET', '/support-chat/conversations'),
   getSupportUnreadEmployee: (params = {}) => {

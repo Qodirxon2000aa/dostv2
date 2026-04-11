@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Menu, ShieldCheck, Eye } from 'lucide-react';
 
 import { api } from './utils/api';
@@ -24,6 +24,26 @@ import NotificationsSendPage from './pages/NotificationsSendPage';
 import AdminSupportChatPage from './pages/AdminSupportChatPage';
 import SettingsPage      from './pages/SettingsPage';
 import AddSuperAdminPage from './pages/AddSuperAdminPage';
+
+/** Support chat mobil: yon padding yo‘q, kontent header ostidan to‘liq balandlik */
+function MainScrollArea({ adminBanner, children }) {
+  const { pathname } = useLocation();
+  const isSupportChat = pathname === '/support-chat';
+  const contentClass = isSupportChat
+    ? 'flex-1 flex flex-col min-h-0 overflow-x-hidden app-content-support-chat-mobile max-lg:overflow-hidden lg:overflow-y-auto lg:app-content-safe lg:p-8'
+    : 'flex-1 min-h-0 app-content-safe p-3 xs:p-4 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden';
+
+  return (
+    <div className={contentClass}>
+      {adminBanner}
+      {isSupportChat ? (
+        <div className="flex flex-col flex-1 min-h-0 max-lg:overflow-hidden">{children}</div>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
 
 const App = () => {
   // Current User holati
@@ -201,16 +221,19 @@ const App = () => {
                   </header>
 
                   {/* Sahifa mazmuni */}
-                  <div className="flex-1 min-h-0 app-content-safe p-3 xs:p-4 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden">
-                    {currentUser?.role === 'ADMIN' && (
-                      <div className="mb-4 rounded-2xl border border-sky-500/35 bg-sky-500/10 px-4 py-3 flex items-start gap-3 text-sky-100">
-                        <Eye className="shrink-0 text-sky-400 mt-0.5" size={18} />
-                        <p className="text-xs sm:text-sm font-bold leading-snug">
-                          <span className="text-sky-300 uppercase tracking-wide">Faqat ko‘rish rejimi.</span>{' '}
-                          Siz ma’lumotlarni ko‘rishingiz mumkin; qo‘shish, tahrirlash va o‘chirish faqat super admin uchun.
-                        </p>
-                      </div>
-                    )}
+                  <MainScrollArea
+                    adminBanner={
+                      currentUser?.role === 'ADMIN' ? (
+                        <div className="mb-4 rounded-2xl border border-sky-500/35 bg-sky-500/10 px-4 py-3 flex items-start gap-3 text-sky-100 max-lg:mx-3 shrink-0">
+                          <Eye className="shrink-0 text-sky-400 mt-0.5" size={18} />
+                          <p className="text-xs sm:text-sm font-bold leading-snug">
+                            <span className="text-sky-300 uppercase tracking-wide">Faqat ko‘rish rejimi.</span>{' '}
+                            Siz ma’lumotlarni ko‘rishingiz mumkin; qo‘shish, tahrirlash va o‘chirish faqat super admin uchun.
+                          </p>
+                        </div>
+                      ) : null
+                    }
+                  >
                     <Routes>
                       <Route
                         index
@@ -412,7 +435,7 @@ const App = () => {
 
                       <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
-                  </div>
+                  </MainScrollArea>
                 </main>
               </div>
               </AdminModeProvider>

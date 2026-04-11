@@ -1037,6 +1037,7 @@ const EmployeePortal = ({
       {supportChatEnabled && targetId && employeeData && (
         <EmployeeSupportChatWidget
           employeeId={targetId}
+          requesterEmployeeId={targetId ? String(targetId) : ''}
           senderName={employeeData.name}
           enabled
         />
