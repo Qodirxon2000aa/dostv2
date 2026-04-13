@@ -128,6 +128,7 @@ export const api = {
     return request('GET', `/notifications${q ? '?' + q : ''}`);
   },
   createNotification: (body) => request('POST', '/notifications', body),
+  createNotificationBroadcast: (body) => request('POST', '/notifications/broadcast', body),
   markNotificationRead: (id) => request('PATCH', `/notifications/${id}/read`),
 
   // ── Support chat (xodim ↔ admin) ───────────────────────────────

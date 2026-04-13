@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Bell, Send, Users, ChevronDown, Sparkles, Clock, History, Radio } from 'lucide-react';
+import { Bell, Send, Users, ChevronDown, Sparkles, Clock, History, Radio, Megaphone } from 'lucide-react';
 import { api } from '../utils/api';
 import { filterWorkforceEmployees } from '../utils/employeeRoles';
 import { ensureRealtimeSocket } from '../utils/realtime';
+
+/** Barcha faol ishchi xodimlarga bir xil matn */
+const RECIPIENT_ALL_ACTIVE = '__ALL_ACTIVE__';
 
 const QUICK_MESSAGES = [
   { label: 'Yaxshi ish!', text: 'Yaxshi ish! Davom eting.' },
@@ -41,6 +44,9 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
   }, [employees]);
 
   const selectedName = useMemo(() => {
+    if (empId === RECIPIENT_ALL_ACTIVE) {
+      return activeEmps.length ? `Barcha faol xodimlar (${activeEmps.length} ta)` : 'Barcha faol xodimlar';
+    }
     const e = activeEmps.find((x) => String(x._id || x.id) === String(empId));
     return e?.name || '';
   }, [activeEmps, empId]);
@@ -99,12 +105,38 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
 
   const handleSend = async () => {
     if (!canMutate) return;
-    if (!empId) return alert('Xodimni tanlang');
+    if (!empId) return alert('Qabul qiluvchini tanlang');
     const text = String(message || '').trim();
     if (!text) return alert('Xabar matnini kiriting yoki shablon tanlang');
     setSubmitting(true);
     try {
       const performer = currentUser?.name ? String(currentUser.name).trim() : 'Admin';
+      if (empId === RECIPIENT_ALL_ACTIVE) {
+        if (!activeEmps.length) {
+          alert('Faol ishchi xodimlar ro‘yxati bo‘sh');
+          return;
+        }
+        const res = await api.createNotificationBroadcast({
+          message: text,
+          createdBy: performer,
+        });
+        const payload = res?.data;
+        const n = payload && typeof payload.count === 'number' ? payload.count : 0;
+        onLog?.(
+          `Xabarnoma ${n} ta xodimga yuborildi (bir xil matn) — ${text.slice(0, 100)}${text.length > 100 ? '…' : ''}`
+        );
+        setMessage('');
+        try {
+          const feedRes = await api.getNotifications({ all: 1, limit: 300 });
+          const list = Array.isArray(feedRes?.data) ? feedRes.data : [];
+          setRecentFeed(list);
+        } catch (feedErr) {
+          console.error('Tarix yangilanmadi:', feedErr);
+        }
+        await onRefresh?.();
+        return;
+      }
+
       const res = await api.createNotification({
         employeeId: empId,
         message: text,
@@ -148,7 +180,7 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
                 Xabarnoma <span className="text-sky-400">yuborish</span>
               </h1>
               <p className="text-slate-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
-                Real-time · xodim tanlang · shablon yoki o‘z matningiz
+                Real-time · bitta yoki hammaga · shablon yoki o‘z matningiz
               </p>
             </div>
           </div>
@@ -169,16 +201,23 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
       <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 sm:p-5 space-y-4">
         <div>
           <label className="text-[8px] text-slate-500 font-black uppercase tracking-widest block mb-1.5">
-            Xodim
+            Qabul qiluvchi
           </label>
           <div className="relative">
-            <Users size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+            {empId === RECIPIENT_ALL_ACTIVE ? (
+              <Megaphone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-500 pointer-events-none" />
+            ) : (
+              <Users size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+            )}
             <select
               value={empId}
               onChange={(e) => setEmpId(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 text-white pl-9 pr-4 py-3 rounded-xl font-bold text-sm outline-none transition-all appearance-none"
             >
-              <option value="">— Xodimni tanlang —</option>
+              <option value="">— Tanlang —</option>
+              <option value={RECIPIENT_ALL_ACTIVE}>
+                Hammaga (barcha faol xodimlarga bir xil xabar)
+              </option>
               {activeEmps.map((e) => (
                 <option key={e._id || e.id} value={e._id || e.id}>
                   {e.name} ({e.position || '—'})
@@ -225,7 +264,7 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
         {empId && message.trim() && (
           <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-3">
             <p className="text-[9px] text-slate-500 font-black uppercase">Qabul qiluvchi</p>
-            <p className="text-white font-black text-sm mt-0.5">{selectedName}</p>
+            <p className="text-white font-black text-sm mt-0.5 leading-snug">{selectedName}</p>
             <p className="text-slate-400 text-xs font-bold mt-2 leading-snug">&quot;{message.trim()}&quot;</p>
           </div>
         )}
@@ -238,6 +277,10 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
         >
           {submitting ? (
             'Yuborilmoqda...'
+          ) : empId === RECIPIENT_ALL_ACTIVE ? (
+            <>
+              <Megaphone size={14} /> Hammaga yuborish
+            </>
           ) : (
             <>
               <Send size={14} /> Yuborish (real-time)

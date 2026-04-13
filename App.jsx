@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { Menu, ShieldCheck, Eye } from 'lucide-react';
 
 import { api } from './utils/api';
+import { useAdminSupportUnread } from './hooks/useAdminSupportUnread';
 import { AdminModeProvider } from './context/AdminModeContext';
 import AppSidebar from './components/AppSidebar';
 import AdminRealtimeToastStack from './components/AdminRealtimeToastStack';
@@ -159,6 +160,7 @@ const App = () => {
 
   const isSuperAdmin   = currentUser?.role === 'SUPER_ADMIN';
   const isAdminOrSuper = isSuperAdmin || currentUser?.role === 'ADMIN';
+  const supportChatUnreadTotal = useAdminSupportUnread(Boolean(currentUser && isAdminOrSuper));
 
   return (
     <Router>
@@ -185,6 +187,7 @@ const App = () => {
                   isAdminOrSuper={isAdminOrSuper}
                   isSuperAdmin={isSuperAdmin}
                   onLogout={handleLogout}
+                  supportChatUnreadTotal={supportChatUnreadTotal}
                 />
 
                 {/* MAIN CONTENT */}
@@ -194,10 +197,16 @@ const App = () => {
                     <button
                       type="button"
                       onClick={() => setIsSidebarOpen(true)}
-                      className="md:hidden p-2.5 -ml-1 rounded-xl text-slate-400 hover:bg-slate-800 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      className="md:hidden relative p-2.5 -ml-1 rounded-xl text-slate-400 hover:bg-slate-800 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       aria-label="Menyuni ochish"
                     >
                       <Menu size={22} />
+                      {isAdminOrSuper && supportChatUnreadTotal > 0 ? (
+                        <span
+                          className="absolute top-1.5 right-1.5 min-w-[10px] h-2.5 px-[3px] rounded-full bg-sky-500 border-2 border-slate-950"
+                          aria-hidden
+                        />
+                      ) : null}
                     </button>
 
                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4 ml-auto shrink-0">

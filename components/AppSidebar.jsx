@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Users,
+  UsersRound,
+  CalendarClock,
   CreditCard,
   LogOut,
   X,
@@ -20,13 +21,22 @@ import {
   Shield,
 } from 'lucide-react';
 
-const NavItem = ({ to, icon, label, onNavigate }) => (
+const NavItem = ({ to, icon, label, onNavigate, badgeCount = 0 }) => (
   <Link
     to={to}
     onClick={onNavigate}
     className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-400 rounded-xl hover:bg-slate-900 hover:text-yellow-500 transition-all font-semibold min-h-[44px] sm:min-h-0"
   >
-    {icon} <span>{label}</span>
+    {icon}
+    <span className="flex-1 min-w-0 truncate">{label}</span>
+    {badgeCount > 0 ? (
+      <span
+        className="sc-unread-badge shrink-0 min-w-[1.25rem] h-5 px-1 rounded-full text-[11px] font-black flex items-center justify-center tabular-nums leading-none"
+        aria-label={`O‘qilmagan xabarlar: ${badgeCount}`}
+      >
+        {badgeCount > 99 ? '99+' : badgeCount}
+      </span>
+    ) : null}
   </Link>
 );
 
@@ -37,6 +47,7 @@ const AppSidebar = ({
   isAdminOrSuper,
   isSuperAdmin,
   onLogout,
+  supportChatUnreadTotal = 0,
 }) => {
   const closeOnNav = () => onClose();
 
@@ -68,21 +79,27 @@ const AppSidebar = ({
           {isAdminOrSuper && (
             <>
               <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Asosiy Panel" onNavigate={closeOnNav} />
-              <NavItem to="/employees" icon={<Users size={20} />} label="Xodimlar" onNavigate={closeOnNav} />
-              <NavItem to="/attendance" icon={<Users size={20} />} label="Davomat" onNavigate={closeOnNav} />
+              <NavItem to="/employees" icon={<UsersRound size={20} />} label="Xodimlar" onNavigate={closeOnNav} />
+              <NavItem to="/objects" icon={<Building2 size={20} />} label="Obyektlar" onNavigate={closeOnNav} />
+              <NavItem to="/attendance" icon={<CalendarClock size={20} />} label="Davomat" onNavigate={closeOnNav} />
               <NavItem to="/payroll" icon={<CreditCard size={20} />} label="Ish haqi" onNavigate={closeOnNav} />
               <NavItem to="/bonuses" icon={<Gift size={20} />} label="Bonuslar" onNavigate={closeOnNav} />
               <NavItem to="/fines" icon={<AlertTriangle size={20} />} label="Jarimalar" onNavigate={closeOnNav} />
-              <NavItem to="/objects" icon={<Building2 size={20} />} label="Obyektlar" onNavigate={closeOnNav} />
+              <NavItem to="/warehouse" icon={<WarehouseIcon size={20} />} label="Ombor" onNavigate={closeOnNav} />
+              <NavItem to="/suppliers" icon={<Contact2 size={20} />} label="Beruvchilar" onNavigate={closeOnNav} />
+              <NavItem to="/excel" icon={<BarChart3 size={20} />} label="Hisobotlar" onNavigate={closeOnNav} />
+              <NavItem to="/notifications-send" icon={<Bell size={20} />} label="Xabarnoma yuborish" onNavigate={closeOnNav} />
+              <NavItem
+                to="/support-chat"
+                icon={<MessageCircle size={20} />}
+                label="Chat (xodimlar)"
+                onNavigate={closeOnNav}
+                badgeCount={supportChatUnreadTotal}
+              />
+              <NavItem to="/logs" icon={<ScrollText size={20} />} label="Loglar" onNavigate={closeOnNav} />
               {isSuperAdmin && (
                 <NavItem to="/add-super-admin" icon={<Shield size={20} />} label="Super admin qo‘shish" onNavigate={closeOnNav} />
               )}
-              <NavItem to="/excel" icon={<BarChart3 size={20} />} label="Hisobotlar" onNavigate={closeOnNav} />
-              <NavItem to="/warehouse" icon={<WarehouseIcon size={20} />} label="Ombor" onNavigate={closeOnNav} />
-              <NavItem to="/suppliers" icon={<Contact2 size={20} />} label="Beruvchilar" onNavigate={closeOnNav} />
-              <NavItem to="/logs" icon={<ScrollText size={20} />} label="Loglar" onNavigate={closeOnNav} />
-              <NavItem to="/notifications-send" icon={<Bell size={20} />} label="Xabarnoma yuborish" onNavigate={closeOnNav} />
-              <NavItem to="/support-chat" icon={<MessageCircle size={20} />} label="Chat (xodimlar)" onNavigate={closeOnNav} />
             </>
           )}
           <NavItem to="/settings" icon={<Settings size={20} />} label="Sozlamalar" onNavigate={closeOnNav} />
