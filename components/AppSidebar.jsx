@@ -19,6 +19,8 @@ import {
   Bell,
   MessageCircle,
   Shield,
+  CheckCircle2,
+  BadgeDollarSign,
 } from 'lucide-react';
 
 const NavItem = ({ to, icon, label, onNavigate, badgeCount = 0 }) => (
@@ -100,6 +102,38 @@ const AppSidebar = ({
               {isSuperAdmin && (
                 <NavItem to="/add-super-admin" icon={<Shield size={20} />} label="Super admin qo‘shish" onNavigate={closeOnNav} />
               )}
+            </>
+          )}
+          {!isAdminOrSuper && (
+            <>
+              <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Kabinet" onNavigate={closeOnNav} />
+              <NavItem
+                to="/kabinet-tolovlar"
+                icon={<BadgeDollarSign size={20} />}
+                label="To‘lovlar"
+                onNavigate={closeOnNav}
+              />
+              <NavItem to="/kabinet-obyektlar" icon={<Building2 size={20} />} label="Obyektlar" onNavigate={closeOnNav} />
+              <NavItem
+                to="/kabinet-davomat"
+                icon={<CheckCircle2 size={20} />}
+                label="Davomat"
+                onNavigate={closeOnNav}
+              />
+              <NavItem
+                to="/ish-kunlarim"
+                icon={<CalendarClock size={20} />}
+                label="Ish kunlarim"
+                onNavigate={closeOnNav}
+              />
+              <NavItem to="/kabinet-xabarlar" icon={<Bell size={20} />} label="Xabarlar" onNavigate={closeOnNav} />
+              <NavItem
+                to="/kabinet-jarimalar"
+                icon={<AlertTriangle size={20} />}
+                label="Jarimalar"
+                onNavigate={closeOnNav}
+              />
+              <NavItem to="/kabinet-bonuslar" icon={<Gift size={20} />} label="Bonuslar" onNavigate={closeOnNav} />
             </>
           )}
           <NavItem to="/settings" icon={<Settings size={20} />} label="Sozlamalar" onNavigate={closeOnNav} />

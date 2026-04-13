@@ -1,12 +1,14 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, BadgeDollarSign, Wallet,
-  Building2, ChevronDown, Clock, X, TrendingUp,
-  CalendarDays, BarChart3, Banknote, Info, AlertTriangle, Gift, Bell,
+  Building2, ChevronRight, Clock, X,
+  CalendarDays, CalendarClock, BarChart3, Banknote, Info, AlertTriangle, Gift, Bell,
 } from 'lucide-react';
 import { api } from '../utils/api';
 import { ensureRealtimeSocket } from '../utils/realtime';
 import { bonusIsActive } from '../components/payroll/payrollBonusUtils';
+import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
 import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
 
 const MONTH_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
@@ -40,10 +42,9 @@ const EmployeePortal = ({
   onRefresh,
   supportChatEnabled = false,
 }) => {
+  const navigate = useNavigate();
   const [loading, setLoading]                   = useState(false);
   const [selectedObjectId, setSelectedObjectId] = useState('');
-  const [activeTab, setActiveTab]               = useState('history');
-  const [expandedObj, setExpandedObj]           = useState(null);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [myNotifications, setMyNotifications] = useState([]);
   const [incomingToast, setIncomingToast] = useState(null);
@@ -51,24 +52,8 @@ const EmployeePortal = ({
   const [cabinetTimePulse, setCabinetTimePulse] = useState(0);
   const dismissedCabinetUnreadRef = useRef(new Set());
 
-  const employeeData = useMemo(() => {
-    if (!user || !employees.length) return null;
-    const uid = user._id != null ? String(user._id) : '';
-    const uu = user.uid != null ? String(user.uid) : '';
-    const mail = user.email ? String(user.email).toLowerCase() : '';
-    return employees.find(e => {
-      const eid = e._id != null ? String(e._id) : '';
-      const euid = e.uid != null ? String(e.uid) : '';
-      const em = e.email ? String(e.email).toLowerCase() : '';
-      return (
-        (uid && (eid === uid || euid === uid)) ||
-        (uu && (eid === uu || euid === uu)) ||
-        (mail && em === mail)
-      );
-    }) || null;
-  }, [employees, user]);
-
-  const targetId = employeeData?._id || employeeData?.uid || null;
+  const employeeData = useMemo(() => resolveEmployeeRecord(user, employees), [user, employees]);
+  const targetId = employeeTargetId(employeeData);
 
   useEffect(() => {
     dismissedCabinetUnreadRef.current = new Set();
@@ -230,10 +215,6 @@ const EmployeePortal = ({
     myActiveBonuses.reduce((s, b) => s + (Number(b.amount) || 0), 0),
   [myActiveBonuses]);
 
-  const cancelledBonusesCount = useMemo(() =>
-    myBonuses.filter(b => !bonusIsActive(b)).length,
-  [myBonuses]);
-
   // ✅ balanceInfo — jarima ayiriladi, bonus qo‘shiladi (Payroll bilan bir xil)
   const balanceInfo = useMemo(() => {
     const dailyRate   = Number(employeeData?.salaryRate) || 0;
@@ -389,7 +370,7 @@ const EmployeePortal = ({
                     onClick={() => {
                       dismissedCabinetUnreadRef.current.add(cabinetUnreadBanner.id);
                       setCabinetUnreadBanner(null);
-                      setActiveTab('messages');
+                      navigate('/kabinet-xabarlar');
                     }}
                     className="py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/80 text-slate-100 text-[10px] sm:text-[11px] font-black uppercase tracking-wide active:scale-[0.98] transition-all"
                   >
@@ -608,429 +589,49 @@ const EmployeePortal = ({
           )}
         </div>
 
-        {/* 3. TABS */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 overflow-x-auto">
-          {[
-            { key:'history', label:"To'lovlar",  icon:<BadgeDollarSign size={13}/> },
-            { key:'objects', label:'Obyektlar',  icon:<Building2 size={13}/> },
-            { key:'days',    label:'Davomat',    icon:<CheckCircle2 size={13}/> },
-            { key:'fines',   label:'Jarimalar',  icon:<AlertTriangle size={13}/>, badge: myActiveFines.length, accent: 'fines' },
-            { key:'bonuses', label:'Bonuslar',   icon:<Gift size={13}/>, badge: myActiveBonuses.length, accent: 'bonuses' },
-            { key:'messages', label:'Xabarlar', icon:<Bell size={13}/>, badge: unreadNotifications, accent: 'messages' },
-          ].map(tab => (
-            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 flex-1 min-w-[3.25rem] flex items-center justify-center gap-0.5 py-2 px-0.5 rounded-lg font-black uppercase transition-all active:scale-95 relative ${
-                activeTab === tab.key
-                  ? tab.accent === 'fines' ? 'bg-rose-600 text-white'
-                    : tab.accent === 'bonuses' ? 'bg-emerald-600 text-white'
-                    : tab.accent === 'messages' ? 'bg-sky-600 text-white'
-                    : 'bg-yellow-500 text-slate-950'
-                  : tab.accent === 'fines' && myActiveFines.length > 0 ? 'text-rose-400 hover:bg-rose-500/10 border border-rose-500/20'
-                  : tab.accent === 'bonuses' && myActiveBonuses.length > 0 ? 'text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20'
-                  : tab.accent === 'messages' && unreadNotifications > 0 ? 'text-sky-400 hover:bg-sky-500/10 border border-sky-500/20'
-                  : 'text-slate-500 hover:text-white hover:bg-slate-900'
-              }`} style={{fontSize:8}}>
-              {tab.icon}<span className="truncate max-w-[4.2rem] sm:max-w-none">{tab.label}</span>
-              {tab.badge > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded-full text-[7px] font-black flex items-center justify-center ${
-                  activeTab === tab.key
-                    ? 'bg-white/30 text-white'
-                    : tab.accent === 'bonuses' ? 'bg-emerald-500 text-white'
-                    : tab.accent === 'messages' ? 'bg-sky-500 text-white'
-                    : 'bg-rose-500 text-white'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* 4A. TO'LOVLAR */}
-        {activeTab === 'history' && (
-          <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="text-white font-black uppercase text-xs tracking-widest italic">To'lovlar Tarixi</h3>
-              <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg">{myPayroll.length} ta</span>
-            </div>
-            <div className="ep-list divide-y divide-slate-900">
-              {[...myPayroll].reverse().map(p => (
-                <div key={p._id||p.id} className="flex justify-between items-center px-4 py-3.5 hover:bg-slate-900/30 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`shrink-0 rounded-xl flex items-center justify-center ${p.status==='PENDING'?'bg-yellow-500/10 text-yellow-500':'bg-emerald-500/10 text-emerald-500'}`} style={{width:34,height:34}}>
-                      <BadgeDollarSign size={14}/>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white font-black text-sm leading-tight truncate">{p.date||p.month}</p>
-                      {p.objectName && <span className="text-[7px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">{p.objectName}</span>}
-                      <p className={`text-[7px] font-black uppercase mt-0.5 ${p.status==='PENDING'?'text-yellow-500':'text-emerald-500'}`}>
-                        {p.status==='PENDING'?'Kutilmoqda':'Tasdiqlandi'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 ml-2">
-                    <p className="text-sm font-black text-white italic">{(Number(p.calculatedSalary)||0).toLocaleString()}</p>
-                    <p className="text-[7px] text-slate-600">UZS</p>
-                  </div>
+        {/* Bo‘limlar — alohida sahifalar */}
+        <div className="space-y-2">
+          <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest px-1">Bo‘limlar</p>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              { to: '/kabinet-tolovlar', label: "To'lovlar", sub: `${myPayroll.length} ta yozuv`, Icon: BadgeDollarSign, accent: 'text-yellow-500', badge: 0 },
+              { to: '/kabinet-obyektlar', label: 'Obyektlar', sub: 'Tasdiqlangan to‘lovlar', Icon: Building2, accent: 'text-blue-400', badge: 0 },
+              { to: '/kabinet-davomat', label: 'Davomat', sub: 'Kelish tarixi', Icon: CheckCircle2, accent: 'text-emerald-400', badge: 0 },
+              { to: '/ish-kunlarim', label: 'Ish kunlarim', sub: 'Sana va summa', Icon: CalendarClock, accent: 'text-cyan-400', badge: 0 },
+              { to: '/kabinet-xabarlar', label: 'Xabarlar', sub: 'Rahbariyatdan', Icon: Bell, accent: 'text-sky-400', badge: unreadNotifications },
+              { to: '/kabinet-jarimalar', label: 'Jarimalar', sub: 'Tarix', Icon: AlertTriangle, accent: 'text-rose-400', badge: myActiveFines.length },
+              { to: '/kabinet-bonuslar', label: 'Bonuslar', sub: 'Tarix', Icon: Gift, accent: 'text-emerald-400', badge: myActiveBonuses.length },
+            ].map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="relative flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-800 bg-slate-950 hover:bg-slate-900/80 transition-colors active:scale-[0.99] shadow-sm"
+              >
+                <div className={`rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 ${item.accent}`} style={{ width: 40, height: 40 }}>
+                  <item.Icon size={18} strokeWidth={2.25} />
                 </div>
-              ))}
-              {myPayroll.length === 0 && <div className="py-14 text-center text-slate-700 font-black uppercase text-xs">To'lovlar tarixi yo'q</div>}
-            </div>
-          </div>
-        )}
-
-        {/* 4B. OBYEKTLAR */}
-        {activeTab === 'objects' && (
-          <div className="space-y-3">
-            {paymentsByObject.length > 0 && (
-              <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className="text-purple-400 shrink-0" size={14}/>
-                  <h3 className="text-white font-black uppercase text-xs italic">Taqsimot xulosa</h3>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-black text-sm leading-tight">{item.label}</p>
+                  <p className="text-[9px] text-slate-500 font-bold mt-0.5">{item.sub}</p>
                 </div>
-                <div className="space-y-2.5">
-                  {paymentsByObject.map(obj => {
-                    const pct = balanceInfo.totalTaken > 0 ? Math.round((obj.total/balanceInfo.totalTaken)*100) : 0;
-                    return (
-                      <div key={obj.id} className="flex items-center gap-2">
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center shrink-0" style={{width:26,height:26}}>
-                          <Building2 className="text-blue-400" size={11}/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center mb-0.5 gap-1">
-                            <span className="text-white font-black text-xs truncate">{obj.name}</span>
-                            <span className="text-yellow-500 font-black text-xs shrink-0">{obj.total.toLocaleString()}</span>
-                          </div>
-                          <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{width:`${pct}%`}}/>
-                          </div>
-                          <p className="text-[7px] text-slate-600 font-bold mt-0.5">{pct}% • {obj.payments.length} ta to'lov</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {paymentsByObject.map(obj => (
-              <div key={obj.id} className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
-                <button onClick={() => setExpandedObj(expandedObj===obj.id?null:obj.id)}
-                  className="w-full px-4 py-3.5 flex items-center gap-3 hover:bg-slate-900/30 transition-colors">
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center shrink-0" style={{width:36,height:36}}>
-                    <Building2 className="text-blue-400" size={15}/>
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-white font-black text-sm truncate">{obj.name}</p>
-                    <p className="text-slate-500 font-bold" style={{fontSize:8}}>{obj.payments.length} ta to'lov</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="text-right">
-                      <p className="text-yellow-500 font-black text-sm italic">{obj.total.toLocaleString()}</p>
-                      <p className="text-slate-600 font-bold" style={{fontSize:7}}>UZS jami</p>
-                    </div>
-                    <ChevronDown size={14} className={`text-slate-500 transition-transform ${expandedObj===obj.id?'rotate-180':''}`}/>
-                  </div>
-                </button>
-                {expandedObj === obj.id && (
-                  <div className="border-t border-slate-800">
-                    <div className="px-4 py-2 bg-slate-900/40">
-                      <p className="text-slate-500 font-black uppercase tracking-widest" style={{fontSize:7}}>Qachon • Qancha</p>
-                    </div>
-                    <div className="ep-list divide-y divide-slate-900" style={{maxHeight:280}}>
-                      {[...obj.payments].sort((a,b)=>new Date(b.date||b.createdAt)-new Date(a.date||a.createdAt)).map(p => (
-                        <div key={p._id||p.id} className="flex justify-between items-center px-4 py-3 hover:bg-slate-900/20">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="bg-emerald-500/10 rounded-lg flex items-center justify-center shrink-0" style={{width:30,height:30}}>
-                              <BadgeDollarSign className="text-emerald-500" size={13}/>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-white font-black text-xs">{p.date||p.month}</p>
-                              <p className="text-slate-500 font-bold" style={{fontSize:7}}>{p.type==='QUICK_ADD'?'Avans':'Oylik'}</p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0 ml-2">
-                            <p className="text-emerald-400 font-black text-sm italic">{(Number(p.calculatedSalary)||0).toLocaleString()}</p>
-                            <p className="text-slate-600 font-bold" style={{fontSize:7}}>UZS</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="px-4 py-3 bg-slate-900/50 border-t border-slate-800 flex justify-between items-center">
-                      <p className="text-slate-500 font-black uppercase" style={{fontSize:8}}>Jami:</p>
-                      <p className="text-yellow-500 font-black text-sm italic">{obj.total.toLocaleString()} <span className="text-slate-500 not-italic" style={{fontSize:8}}>UZS</span></p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            {paymentsByObject.length === 0 && (
-              <div className="bg-slate-950 rounded-2xl border border-slate-800 py-14 text-center">
-                <p className="text-slate-700 font-black uppercase text-xs">Hali hech qaysi obyektdan to'lov yo'q</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 4C. DAVOMAT */}
-        {activeTab === 'days' && (
-          <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="text-white font-black uppercase text-xs tracking-widest italic">Davomat Tarixi</h3>
-              <span className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
-                {myAttendance.filter(a=>a.status==='PRESENT').length} kun
-              </span>
-            </div>
-            <div className="ep-list divide-y divide-slate-900">
-              {[...myAttendance].reverse().map(a => (
-                <div key={a._id||a.id} className="flex justify-between items-center px-4 py-3.5 hover:bg-slate-900/30">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`shrink-0 rounded-xl flex items-center justify-center ${
-                      a.status==='PRESENT'?'bg-emerald-500/10 text-emerald-500':a.status==='PENDING'?'bg-yellow-500/10 text-yellow-500':'bg-slate-800 text-slate-500'
-                    }`} style={{width:34,height:34}}>
-                      {a.status==='PRESENT'?<CheckCircle2 size={14}/>:a.status==='PENDING'?<Clock size={14}/>:<X size={14}/>}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white font-black text-sm">{a.date}</p>
-                      {a.objectName && <span className="text-[7px] text-blue-400 font-black bg-blue-500/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">{a.objectName}</span>}
-                    </div>
-                  </div>
-                  <span className={`shrink-0 font-black uppercase px-2 py-1 rounded-lg border ${
-                    a.status==='PRESENT'?'text-emerald-500 bg-emerald-500/10 border-emerald-500/20':a.status==='PENDING'?'text-yellow-500 bg-yellow-500/10 border-yellow-500/20':'text-slate-500 bg-slate-800 border-slate-700'
-                  }`} style={{fontSize:7}}>
-                    {a.status==='PRESENT'?'Keldi':a.status==='PENDING'?'Kutilmoqda':'Kelmadi'}
+                {item.badge > 0 ? (
+                  <span
+                    className={`absolute top-2 right-10 min-w-[1.125rem] h-5 px-1 rounded-full text-white text-[9px] font-black flex items-center justify-center ${
+                      item.to === '/kabinet-jarimalar'
+                        ? 'bg-rose-500'
+                        : item.to === '/kabinet-bonuslar'
+                          ? 'bg-emerald-500'
+                          : 'bg-sky-500'
+                    }`}
+                  >
+                    {item.badge > 99 ? '99+' : item.badge}
                   </span>
-                </div>
-              ))}
-              {myAttendance.length === 0 && <div className="py-14 text-center text-slate-700 font-black uppercase text-xs">Davomat tarixi yo'q</div>}
-            </div>
+                ) : null}
+                <ChevronRight className="text-slate-600 shrink-0" size={18} />
+              </Link>
+            ))}
           </div>
-        )}
-
-        {/* ✅ 4D. JARIMALAR TAB */}
-        {activeTab === 'fines' && (
-          <div className="space-y-3">
-            {/* Xulosa */}
-            <div className={`rounded-2xl border p-4 ${totalFines > 0 ? 'bg-rose-500/10 border-rose-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[8px] font-black uppercase tracking-widest mb-1 text-slate-500">Aktiv jarimalar jami</p>
-                  <p className={`font-black text-2xl italic ${totalFines > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    {totalFines > 0 ? `−${totalFines.toLocaleString()}` : '0'}
-                    <span className="text-sm not-italic ml-1 text-slate-500">UZS</span>
-                  </p>
-                  <p className="text-[8px] font-bold mt-1 text-slate-500">
-                    {myActiveFines.length} ta aktiv • {myFines.filter(f=>f.status==='CANCELLED').length} ta bekor qilingan
-                  </p>
-                </div>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${totalFines > 0 ? 'bg-rose-500/20 border-rose-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
-                  <AlertTriangle className={totalFines > 0 ? 'text-rose-400' : 'text-emerald-400'} size={24}/>
-                </div>
-              </div>
-            </div>
-
-            {/* Jarimalar ro'yxati */}
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-white font-black uppercase text-xs tracking-widest italic">Jarimalar Tarixi</h3>
-                <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg">{myFines.length} ta</span>
-              </div>
-              <div className="ep-list divide-y divide-slate-900">
-                {[...myFines].reverse().map(f => (
-                  <div key={f._id||f.id} className="fine-row flex items-center justify-between px-4 py-3.5 hover:bg-slate-900/30">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className={`shrink-0 rounded-xl flex items-center justify-center border ${
-                        f.status === 'ACTIVE'
-                          ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                          : 'bg-slate-800 border-slate-700 text-slate-500'
-                      }`} style={{width:34,height:34}}>
-                        <AlertTriangle size={14}/>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                            f.status === 'ACTIVE'
-                              ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-                              : 'text-slate-500 bg-slate-800 border-slate-700 line-through'
-                          }`}>
-                            {f.status === 'ACTIVE' ? '● Aktiv' : '✕ Bekor'}
-                          </span>
-                          {f.createdAt && (
-                            <span className="text-[7px] text-slate-600 font-bold">
-                              {new Date(f.createdAt).toLocaleDateString('uz-UZ')}
-                            </span>
-                          )}
-                        </div>
-                        {f.comment && (
-                          <p className="text-slate-400 text-[9px] font-bold truncate">{f.comment}</p>
-                        )}
-                        <p className="text-slate-600 text-[7px] font-bold">Admin: {f.appliedBy || 'admin'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className={`font-black text-sm italic ${f.status === 'ACTIVE' ? 'text-rose-400' : 'text-slate-600 line-through'}`}>
-                        −{(Number(f.amount)||0).toLocaleString()}
-                      </p>
-                      <p className="text-[7px] text-slate-600">UZS</p>
-                    </div>
-                  </div>
-                ))}
-                {myFines.length === 0 && (
-                  <div className="py-14 text-center">
-                    <p className="text-slate-700 font-black uppercase text-xs">Jarimalar yo'q ✓</p>
-                    <p className="text-slate-800 text-[8px] font-bold mt-1">Yaxshi ishlayapsiz!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 4E. BONUSLAR TAB */}
-        {activeTab === 'bonuses' && (
-          <div className="space-y-3">
-            <div className={`rounded-2xl border p-4 ${totalBonuses > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900/40 border-slate-800'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[8px] font-black uppercase tracking-widest mb-1 text-slate-500">Aktiv bonuslar jami</p>
-                  <p className={`font-black text-2xl italic ${totalBonuses > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {totalBonuses > 0 ? `+${totalBonuses.toLocaleString()}` : '0'}
-                    <span className="text-sm not-italic ml-1 text-slate-500">UZS</span>
-                  </p>
-                  <p className="text-[8px] font-bold mt-1 text-slate-500">
-                    {myActiveBonuses.length} ta aktiv • {cancelledBonusesCount} ta bekor qilingan
-                  </p>
-                </div>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${totalBonuses > 0 ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-800 border-slate-700'}`}>
-                  <Gift className={totalBonuses > 0 ? 'text-emerald-400' : 'text-slate-600'} size={24}/>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-white font-black uppercase text-xs tracking-widest italic">Bonuslar tarixi</h3>
-                <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg">{myBonuses.length} ta</span>
-              </div>
-              <div className="ep-list divide-y divide-slate-900">
-                {[...myBonuses].reverse().map(b => {
-                  const active = bonusIsActive(b);
-                  const reason = b.reason || b.comment || '';
-                  const bDate = b.date || (b.createdAt ? new Date(b.createdAt).toLocaleDateString('uz-UZ') : null);
-                  return (
-                    <div key={b._id || b.id} className="bonus-row flex items-center justify-between px-4 py-3.5 hover:bg-slate-900/30">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className={`shrink-0 rounded-xl flex items-center justify-center border ${
-                          active
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                            : 'bg-slate-800 border-slate-700 text-slate-500'
-                        }`} style={{ width: 34, height: 34 }}>
-                          <Gift size={14} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                            <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                              active
-                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                : 'text-slate-500 bg-slate-800 border-slate-700 line-through'
-                            }`}>
-                              {active ? '● Aktiv' : '✕ Bekor'}
-                            </span>
-                            {bDate && (
-                              <span className="text-[7px] text-slate-600 font-bold">{bDate}</span>
-                            )}
-                          </div>
-                          {reason && (
-                            <p className="text-slate-400 text-[9px] font-bold truncate">{reason}</p>
-                          )}
-                          <p className="text-slate-600 text-[7px] font-bold">
-                            {b.createdBy || b.appliedBy || 'admin'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0 ml-3">
-                        <p className={`font-black text-sm italic ${active ? 'text-emerald-400' : 'text-slate-600 line-through'}`}>
-                          +{(Number(b.amount) || 0).toLocaleString()}
-                        </p>
-                        <p className="text-[7px] text-slate-600">UZS</p>
-                      </div>
-                    </div>
-                  );
-                })}
-                {myBonuses.length === 0 && (
-                  <div className="py-14 text-center">
-                    <p className="text-slate-700 font-black uppercase text-xs">Bonuslar hozircha yo&apos;q</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'messages' && (
-          <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Bell className="text-sky-400 shrink-0" size={16} />
-                <h3 className="text-white font-black uppercase text-xs tracking-widest italic truncate">Xabarlar</h3>
-              </div>
-              <span className="text-[8px] font-black text-slate-500 bg-slate-800 px-2 py-1 rounded-lg shrink-0">
-                {unreadNotifications > 0 ? `${unreadNotifications} o‘qilmagan` : `${myNotifications.length} ta`}
-              </span>
-            </div>
-            <div className="ep-list divide-y divide-slate-900">
-              {myNotifications.length === 0 ? (
-                <div className="py-14 text-center px-4">
-                  <Bell className="text-slate-800 mx-auto mb-2" size={28} />
-                  <p className="text-slate-700 font-black uppercase text-xs">Hozircha xabar yo‘q</p>
-                </div>
-              ) : (
-                myNotifications.map((n) => {
-                  const nid = n._id || n.id;
-                  const when = n.createdAt
-                    ? new Date(n.createdAt).toLocaleString('uz-UZ', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false,
-                      })
-                    : '—';
-                  return (
-                    <button
-                      key={nid}
-                      type="button"
-                      onClick={() => handleNotifRead(n)}
-                      className={`w-full text-left px-4 py-3.5 transition-colors ${
-                        n.read ? 'hover:bg-slate-900/30' : 'bg-sky-500/5 hover:bg-sky-500/10 border-l-2 border-sky-500'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <span
-                          className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                            n.read
-                              ? 'text-slate-500 bg-slate-800 border-slate-700'
-                              : 'text-sky-400 bg-sky-500/10 border-sky-500/30'
-                          }`}
-                        >
-                          {n.read ? 'O‘qilgan' : 'Yangi'}
-                        </span>
-                        <span className="text-[7px] text-slate-600 font-bold tabular-nums shrink-0">{when}</span>
-                      </div>
-                      <p className="text-white text-sm font-bold leading-snug break-words">{n.message}</p>
-                      {(n.createdBy || n.employeeName) && (
-                        <p className="text-[7px] text-slate-600 font-bold mt-1">
-                          {n.createdBy ? `Kimdan: ${n.createdBy}` : ''}
-                        </p>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* ══ BALANS TO'LIQ MODAL ══ */}

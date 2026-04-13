@@ -24,6 +24,13 @@ import LogsPage          from './pages/LogsPage';
 import NotificationsSendPage from './pages/NotificationsSendPage';
 import AdminSupportChatPage from './pages/AdminSupportChatPage';
 import SettingsPage      from './pages/SettingsPage';
+import EmployeeWorkDaysPage from './pages/EmployeeWorkDaysPage';
+import EmployeePaymentsPage from './pages/EmployeePaymentsPage';
+import EmployeeObjectsPage from './pages/EmployeeObjectsPage';
+import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
+import EmployeeMessagesPage from './pages/EmployeeMessagesPage';
+import EmployeeFinesPage from './pages/EmployeeFinesPage';
+import EmployeeBonusesPage from './pages/EmployeeBonusesPage';
 import AddSuperAdminPage from './pages/AddSuperAdminPage';
 
 /** Support chat mobil: yon padding yo‘q, kontent header ostidan to‘liq balandlik */
@@ -439,6 +446,114 @@ const App = () => {
                             onRefresh={loadData}
                             supportChatEnabled={!isAdminOrSuper}
                           />
+                        }
+                      />
+
+                      <Route
+                        path="/ish-kunlarim"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeWorkDaysPage
+                              user={currentUser}
+                              employees={employees}
+                              attendance={attendance}
+                              payroll={payroll}
+                              objects={objects}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+
+                      <Route
+                        path="/kabinet-tolovlar"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeePaymentsPage
+                              user={currentUser}
+                              employees={employees}
+                              payroll={payroll}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-obyektlar"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeObjectsPage
+                              user={currentUser}
+                              employees={employees}
+                              payroll={payroll}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-davomat"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeAttendancePage
+                              user={currentUser}
+                              employees={employees}
+                              attendance={attendance}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-xabarlar"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeMessagesPage
+                              user={currentUser}
+                              employees={employees}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-jarimalar"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeFinesPage
+                              user={currentUser}
+                              employees={employees}
+                              fines={fines}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-bonuslar"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeBonusesPage
+                              user={currentUser}
+                              employees={employees}
+                              bonuses={bonuses}
+                              supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
                         }
                       />
 
