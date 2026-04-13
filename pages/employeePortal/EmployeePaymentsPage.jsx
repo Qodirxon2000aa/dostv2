@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BadgeDollarSign } from 'lucide-react';
-import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import { resolveEmployeeRecord, employeeTargetId } from '../../utils/employeeSelf';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const EmployeePaymentsPage = ({
   user,

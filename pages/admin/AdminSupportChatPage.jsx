@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessageCircle, Search, Send, Users } from 'lucide-react';
-import { api } from '../utils/api';
-import { filterWorkforceEmployees } from '../utils/employeeRoles';
-import { ensureRealtimeSocket } from '../utils/realtime';
-import SupportChatMessageBubble from '../components/SupportChatMessageBubble';
+import { api } from '../../utils/api';
+import { filterWorkforceEmployees } from '../../utils/employeeRoles';
+import { ensureRealtimeSocket } from '../../utils/realtime';
+import SupportChatMessageBubble from '../../components/SupportChatMessageBubble';
 
 const formatBubbleTime = (v) => {
   if (!v) return '';

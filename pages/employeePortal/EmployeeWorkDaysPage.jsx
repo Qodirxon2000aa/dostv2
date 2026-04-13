@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Building2, CalendarClock, CalendarDays } from 'lucide-react';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const MONTH_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 

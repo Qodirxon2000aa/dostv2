@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Bell } from 'lucide-react';
-import { api } from '../utils/api';
-import { ensureRealtimeSocket } from '../utils/realtime';
-import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import { api } from '../../utils/api';
+import { ensureRealtimeSocket } from '../../utils/realtime';
+import { resolveEmployeeRecord, employeeTargetId } from '../../utils/employeeSelf';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const EmployeeMessagesPage = ({
   user,

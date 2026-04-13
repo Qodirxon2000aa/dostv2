@@ -4,6 +4,60 @@ const BASE_URL = (() => {
   return fromEnv || 'https://nodirkhanov.uz/api';
 })();
 
+/** Ixtiyoriy Telegram log (.env.local — VITE_TELEGRAM_LOG_*) — await qilinmaydi, API sekinlamaydi */
+const TG_LOG_TOKEN = String(import.meta.env.VITE_TELEGRAM_LOG_BOT_TOKEN ?? '').trim();
+const TG_LOG_CHAT = String(import.meta.env.VITE_TELEGRAM_LOG_CHAT_ID ?? '').trim();
+
+function redactForTelegramLog(val, depth = 0) {
+  if (depth > 10) return '[…]';
+  if (val === null || val === undefined) return val;
+  if (typeof val === 'string') {
+    if (val.startsWith('data:image') && val.length > 80) return `[rasm ~${val.length} bayt]`;
+    return val.length > 800 ? `${val.slice(0, 400)}…` : val;
+  }
+  if (typeof val !== 'object') return val;
+  if (Array.isArray(val)) return val.slice(0, 50).map((x) => redactForTelegramLog(x, depth + 1));
+  const out = {};
+  for (const k of Object.keys(val)) {
+    if (/password|token|secret|refresh/i.test(k)) {
+      out[k] = '***';
+      continue;
+    }
+    if (k === 'mediaUrl' && typeof val[k] === 'string' && val[k].length > 120) {
+      out[k] = `[uzun matn ~${val[k].length}]`;
+      continue;
+    }
+    out[k] = redactForTelegramLog(val[k], depth + 1);
+  }
+  return out;
+}
+
+function stringifyLogPart(obj, max = 1600) {
+  try {
+    const s = JSON.stringify(obj);
+    return s.length > max ? `${s.slice(0, max)}…` : s;
+  } catch {
+    return String(obj).slice(0, max);
+  }
+}
+
+function pushTelegramApiLog({ method, path, status, ms, reqBody, resBody, note }) {
+  if (!TG_LOG_TOKEN || !TG_LOG_CHAT) return;
+  const reqPreview = stringifyLogPart(reqBody != null ? redactForTelegramLog(reqBody) : '(body yo‘q)');
+  const resPreview = stringifyLogPart(resBody != null ? redactForTelegramLog(resBody) : '(javob yo‘q)');
+  const head = `📡 ${method} ${path}\n⏱ ${ms}ms · ${status || '—'}${note ? ` · ${note}` : ''}`;
+  const text = `${head}\n📤 ${reqPreview}\n📥 ${resPreview}`.slice(0, 4090);
+  void fetch(`https://api.telegram.org/bot${TG_LOG_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TG_LOG_CHAT,
+      text,
+      disable_web_page_preview: true,
+    }),
+  }).catch(() => {});
+}
+
 const getToken = () => {
   try {
     const user = localStorage.getItem('currentUser');
@@ -27,6 +81,7 @@ const getRoleHeaders = () => {
 };
 
 const request = async (method, path, body = null) => {
+  const t0 = Date.now();
   const token = getToken();
   const options = {
     method,
@@ -38,18 +93,60 @@ const request = async (method, path, body = null) => {
   };
   if (body) options.body = JSON.stringify(body);
 
-  const res = await fetch(`${BASE_URL}${path}`, options);
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, options);
+  } catch (e) {
+    pushTelegramApiLog({
+      method,
+      path,
+      status: 0,
+      ms: Date.now() - t0,
+      reqBody: body,
+      resBody: null,
+      note: `tarmoq: ${e?.message || 'xato'}`,
+    });
+    throw e;
+  }
 
   let data;
   try {
     data = await res.json();
   } catch {
+    pushTelegramApiLog({
+      method,
+      path,
+      status: res.status,
+      ms: Date.now() - t0,
+      reqBody: body,
+      resBody: '(JSON emas)',
+      note: 'parse',
+    });
     throw new Error("Server javobi noto'g'ri");
   }
 
   if (!res.ok) {
+    pushTelegramApiLog({
+      method,
+      path,
+      status: res.status,
+      ms: Date.now() - t0,
+      reqBody: body,
+      resBody: data,
+      note: 'xato',
+    });
     throw new Error(data.message || data.error || `Server xatosi: ${res.status}`);
   }
+
+  pushTelegramApiLog({
+    method,
+    path,
+    status: res.status,
+    ms: Date.now() - t0,
+    reqBody: body,
+    resBody: data,
+    note: '',
+  });
 
   return data;
 };

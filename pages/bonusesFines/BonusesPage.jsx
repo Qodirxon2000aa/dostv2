@@ -3,8 +3,8 @@ import {
   Gift, Trash2, Users, Search,
   ChevronDown, Ban, Clock, Filter, Building2,
 } from 'lucide-react';
-import { api } from '../utils/api';
-import { filterWorkforceEmployees } from '../utils/employeeRoles';
+import { api } from '../../utils/api';
+import { filterWorkforceEmployees } from '../../utils/employeeRoles';
 
 const fmt = n => Number(n || 0).toLocaleString('uz-UZ');
 

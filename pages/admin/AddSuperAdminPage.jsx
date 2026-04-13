@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ShieldCheck, Loader2, Save, Eye, EyeOff, Edit2, Trash2, X } from 'lucide-react';
-import { api } from '../utils/api';
+import { api } from '../../utils/api';
 
 const ROLE_LABEL = {
   SUPER_ADMIN: 'Super admin',

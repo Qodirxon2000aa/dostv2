@@ -13,25 +13,25 @@ import EmployeesPage     from './pages/EmployeesPage';
 import AttendancePage    from './pages/AttendancePage';
 import PayrollPage       from './pages/PayrollPage';
 import LoginPage         from './pages/LoginPage';
-import EmployeePortalPage from './pages/EmployeePortalPage';
 import ObjectsPage       from './pages/ObjectsPage';
 import ExcelPage         from './pages/ExcelPage';
-import FinesPage         from './pages/FinesPage';
 import WarehousePage     from './pages/WarehousePage';
 import SuppliersPage     from './pages/SuppliersPage';
-import BonusesPage       from './pages/BonusesPage';
+import { BonusesPage, FinesPage } from './pages/bonusesFines';
 import LogsPage          from './pages/LogsPage';
 import NotificationsSendPage from './pages/NotificationsSendPage';
-import AdminSupportChatPage from './pages/AdminSupportChatPage';
 import SettingsPage      from './pages/SettingsPage';
-import EmployeeWorkDaysPage from './pages/EmployeeWorkDaysPage';
-import EmployeePaymentsPage from './pages/EmployeePaymentsPage';
-import EmployeeObjectsPage from './pages/EmployeeObjectsPage';
-import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
-import EmployeeMessagesPage from './pages/EmployeeMessagesPage';
-import EmployeeFinesPage from './pages/EmployeeFinesPage';
-import EmployeeBonusesPage from './pages/EmployeeBonusesPage';
-import AddSuperAdminPage from './pages/AddSuperAdminPage';
+import {
+  EmployeePortalPage,
+  EmployeeWorkDaysPage,
+  EmployeePaymentsPage,
+  EmployeeObjectsPage,
+  EmployeeAttendancePage,
+  EmployeeMessagesPage,
+  EmployeeFinesPage,
+  EmployeeBonusesPage,
+} from './pages/employeePortal';
+import { AddSuperAdminPage, AdminSupportChatPage } from './pages/admin';
 
 /** Support chat mobil: yon padding yo‘q, kontent header ostidan to‘liq balandlik */
 function MainScrollArea({ adminBanner, children }) {

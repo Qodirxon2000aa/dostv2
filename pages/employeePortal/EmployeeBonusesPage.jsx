@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Gift } from 'lucide-react';
-import { bonusIsActive } from '../components/payroll/payrollBonusUtils';
-import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import { bonusIsActive } from '../../components/payroll/payrollBonusUtils';
+import { resolveEmployeeRecord, employeeTargetId } from '../../utils/employeeSelf';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const EmployeeBonusesPage = ({
   user,

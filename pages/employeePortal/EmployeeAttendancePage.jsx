@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock, X } from 'lucide-react';
-import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import { resolveEmployeeRecord, employeeTargetId } from '../../utils/employeeSelf';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const EmployeeAttendancePage = ({
   user,

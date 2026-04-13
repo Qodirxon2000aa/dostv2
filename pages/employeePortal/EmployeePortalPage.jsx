@@ -5,11 +5,11 @@ import {
   Building2, ChevronRight, Clock, X,
   CalendarDays, CalendarClock, BarChart3, Banknote, Info, AlertTriangle, Gift, Bell,
 } from 'lucide-react';
-import { api } from '../utils/api';
-import { ensureRealtimeSocket } from '../utils/realtime';
-import { bonusIsActive } from '../components/payroll/payrollBonusUtils';
-import { resolveEmployeeRecord, employeeTargetId } from '../utils/employeeSelf';
-import EmployeeSupportChatWidget from '../components/EmployeeSupportChatWidget';
+import { api } from '../../utils/api';
+import { ensureRealtimeSocket } from '../../utils/realtime';
+import { bonusIsActive } from '../../components/payroll/payrollBonusUtils';
+import { resolveEmployeeRecord, employeeTargetId } from '../../utils/employeeSelf';
+import EmployeeSupportChatWidget from '../../components/EmployeeSupportChatWidget';
 
 const MONTH_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
 
