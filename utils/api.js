@@ -13,12 +13,26 @@ const getToken = () => {
   }
 };
 
+/** Admin panel read-only tekshiruvi uchun (server X-User-Role bilan) */
+const getRoleHeaders = () => {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    if (!raw) return {};
+    const u = JSON.parse(raw);
+    if (!u?.role) return {};
+    return { 'X-User-Role': String(u.role) };
+  } catch {
+    return {};
+  }
+};
+
 const request = async (method, path, body = null) => {
   const token = getToken();
   const options = {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...getRoleHeaders(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };

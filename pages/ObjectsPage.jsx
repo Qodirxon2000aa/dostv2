@@ -54,11 +54,9 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
     const comment = String(withdrawComment || '').trim();
     if (!amount || Number.isNaN(amount) || amount <= 0) return alert('Summani to\'g\'ri kiriting');
     if (!comment) return alert('Sabab (izoh) kiriting');
-    const currentNeed = Number(getObjectLaborStats(objId).objectNeedToPay) || 0;
-    const signedAmount = currentNeed < 0 ? -Math.abs(amount) : Math.abs(amount);
     setWithdrawLoading(true);
     try {
-      await api.addObjectWithdrawal(objId, { amount: signedAmount, comment });
+      await api.addObjectWithdrawal(objId, { amount: Math.abs(amount), comment });
       resetWithdrawalForm();
       await onRefresh();
     } catch (err) {
@@ -187,15 +185,12 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
     const objectPaidTotal = objectPayrollPaidTotal + objectBonusTotal;
     const objectWithdrawalTotal = ((objects || []).find(o => String(o._id || o.id) === String(objId))?.withdrawalHistory || [])
       .reduce((s, x) => s + (Number(x.amount) || 0), 0);
-    const objectNeedRaw = objectShouldPayTotal - objectPaidTotal + objectWithdrawalTotal;
 
     return {
       perEmployee,
       totalWorkedDays,
       objectShouldPayTotal,
       objectPaidTotal,
-      // Invert sign intentionally: debt/overpay directions are shown oppositely for this metric.
-      objectNeedToPay: -objectNeedRaw,
       objectBonusTotal,
       bonusByEmployee,
       objectWithdrawalTotal,
@@ -207,10 +202,25 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
     resetWithdrawalForm();
     setEditWithdrawal({ objId: '', wid: '', amount: '', comment: '' });
   };
-  const totalNeedFromObjectCards = useMemo(
-    () => (objects || []).reduce((sum, obj) => sum + getObjectLaborStats(obj._id || obj.id).objectNeedToPay, 0),
-    [objects, attendance, employees, payroll, bonuses, workforceIds]
-  );
+  /**
+   * Obyektga tushgan summa (withdrawal) haqni oshiradi, qarzni kamaytiradi:
+   * Haq = max(0, berilgan + obyektga − hisoblangan)
+   * Qarz = max(0, hisoblangan − berilgan − obyektga)
+   */
+  const objectHaqQarzTotals = useMemo(() => {
+    let totalHaq = 0;
+    let totalQarz = 0;
+    (objects || []).forEach((obj) => {
+      const id = obj._id || obj.id;
+      const s = getObjectLaborStats(id);
+      const hisoblangan = Number(s.objectShouldPayTotal) || 0;
+      const berilgan = Number(s.objectPaidTotal) || 0;
+      const obyektga = Number(s.objectWithdrawalTotal) || 0;
+      totalHaq += Math.max(0, berilgan + obyektga - hisoblangan);
+      totalQarz += Math.max(0, hisoblangan - berilgan - obyektga);
+    });
+    return { totalHaq, totalQarz };
+  }, [objects, attendance, employees, payroll, bonuses, workforceIds]);
 
   return (
     <div className="space-y-4 pb-10">
@@ -226,13 +236,24 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
         </div>
       </div>
 
-      <div className="bg-slate-950 rounded-2xl border border-violet-500/20 p-4">
+      <div className="bg-slate-950 rounded-2xl border border-violet-500/20 p-4 space-y-3">
         <p className="text-[8px] text-violet-400 font-black uppercase tracking-widest mb-2">Ishchilar bo'yicha umumiy hisob (ish kunlariga qarab)</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800 text-center"><p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">Hisoblangan</p><p className="text-emerald-400 font-black text-xs">{payrollNeedSummary.totalEarned.toLocaleString()}</p></div>
           <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800 text-center"><p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">Berilgan</p><p className="text-yellow-500 font-black text-xs">{payrollNeedSummary.totalPaid.toLocaleString()}</p></div>
           <div className={`p-2 rounded-xl border text-center ${payrollNeedSummary.totalNeedToPay < 0 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}><p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">Berilishi kerak</p><p className={`font-black text-xs ${payrollNeedSummary.totalNeedToPay < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>{payrollNeedSummary.totalNeedToPay.toLocaleString()}</p></div>
-          <div className={`p-2 rounded-xl border text-center ${totalNeedFromObjectCards < 0 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-violet-500/10 border-violet-500/20'}`}><p className="text-[7px] text-slate-500 font-black uppercase mb-0.5">Obyektdan olinishi kerak bo'lgan summa</p><p className={`font-black text-xs ${totalNeedFromObjectCards < 0 ? 'text-rose-500' : 'text-violet-300'}`}>{totalNeedFromObjectCards.toLocaleString()}</p></div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+          <div className="bg-teal-500/10 p-2 rounded-xl border border-teal-500/25 text-center">
+            <p className="text-[7px] text-teal-400 font-black uppercase mb-0.5 leading-tight">Obyekt haqi</p>
+            <p className="text-teal-300 font-black text-xs">{objectHaqQarzTotals.totalHaq.toLocaleString()}</p>
+            <p className="text-[6px] text-slate-500 font-bold mt-0.5">berilgan + obyektga − hisoblangan</p>
+          </div>
+          <div className="bg-orange-500/10 p-2 rounded-xl border border-orange-500/25 text-center">
+            <p className="text-[7px] text-orange-400 font-black uppercase mb-0.5 leading-tight">Obyekt qarzi</p>
+            <p className="text-orange-300 font-black text-xs">{objectHaqQarzTotals.totalQarz.toLocaleString()}</p>
+            <p className="text-[6px] text-slate-500 font-bold mt-0.5">hisoblangan − berilgan − obyektga</p>
+          </div>
         </div>
       </div>
 
@@ -254,6 +275,11 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
           {objects.map(obj => {
             const id = obj._id || obj.id;
             const laborStats = getObjectLaborStats(id);
+            const hisoblangan = Number(laborStats.objectShouldPayTotal) || 0;
+            const berilgan = Number(laborStats.objectPaidTotal) || 0;
+            const obyektga = Number(laborStats.objectWithdrawalTotal) || 0;
+            const obyektHaq = Math.max(0, berilgan + obyektga - hisoblangan);
+            const obyektQarz = Math.max(0, hisoblangan - berilgan - obyektga);
             const isExpanded = expandedId === id;
             return (
               <div key={id} className={`bg-slate-950 border rounded-2xl transition-all ${isExpanded ? 'border-yellow-500/30' : 'border-slate-800'}`}>
@@ -270,10 +296,21 @@ const ObjectsManager = ({ objects, payroll, bonuses = [], attendance = [], emplo
                   </div>
                   <div className="mt-2 bg-violet-500/10 border border-violet-500/20 rounded-xl p-2">
                     <p className="text-[7px] text-violet-300 font-black uppercase text-center">Shu obyekt bo'yicha ish haqi hisobi</p>
-                    <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                    <div className="grid grid-cols-2 gap-1.5 mt-1.5">
                       <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-center"><p className="text-[6px] text-slate-500 font-black uppercase">Hisoblangan</p><p className="text-emerald-400 font-black text-[10px]">{laborStats.objectShouldPayTotal.toLocaleString()}</p></div>
                       <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-center"><p className="text-[6px] text-slate-500 font-black uppercase">Berilgan</p><p className="text-yellow-500 font-black text-[10px]">{laborStats.objectPaidTotal.toLocaleString()}</p></div>
-                      <div className={`p-1.5 rounded-lg border text-center ${laborStats.objectNeedToPay < 0 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-violet-500/10 border-violet-500/20'}`}><p className="text-[6px] text-slate-500 font-black uppercase">Obyektdan olinishi kerak bo'lgan summa</p><p className={`font-black text-[10px] ${laborStats.objectNeedToPay < 0 ? 'text-rose-400' : 'text-violet-300'}`}>{laborStats.objectNeedToPay.toLocaleString()}</p></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                      <div className="bg-teal-500/10 p-1.5 rounded-lg border border-teal-500/20 text-center">
+                        <p className="text-[6px] text-teal-400 font-black uppercase">Obyekt haqi</p>
+                        <p className="text-teal-300 font-black text-[10px]">{obyektHaq.toLocaleString()}</p>
+                        <p className="text-[5px] text-slate-500 font-bold">berilgan + obyektga − hisoblangan</p>
+                      </div>
+                      <div className="bg-orange-500/10 p-1.5 rounded-lg border border-orange-500/20 text-center">
+                        <p className="text-[6px] text-orange-400 font-black uppercase">Obyekt qarzi</p>
+                        <p className="text-orange-300 font-black text-[10px]">{obyektQarz.toLocaleString()}</p>
+                        <p className="text-[5px] text-slate-500 font-bold">hisoblangan − berilgan − obyektga</p>
+                      </div>
                     </div>
                   </div>
                 </button>
