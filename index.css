@@ -866,3 +866,86 @@ html.theme-light .sc-fab-badge {
     bottom: max(4.5rem, calc(60px + env(safe-area-inset-bottom, 0px))) !important;
   }
 }
+
+@keyframes login-lightning-bolt {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.25);
+    filter: brightness(1);
+  }
+  20% {
+    opacity: 1;
+    transform: scaleY(1);
+    filter: brightness(1.6);
+  }
+  45% {
+    opacity: 0.75;
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.03);
+    filter: brightness(1);
+  }
+}
+
+@keyframes login-lightning-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.35;
+  }
+  35% {
+    opacity: 0.15;
+  }
+  55% {
+    opacity: 0.28;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.login-lightning-wrapper {
+  width: 22px;
+  transform-origin: 50% 0%;
+}
+
+.login-lightning-core {
+  width: 2px;
+  margin: 0 auto;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(253, 224, 71, 1) 0px,
+    rgba(253, 224, 71, 1) 10px,
+    rgba(250, 204, 21, 0.25) 10px,
+    rgba(250, 204, 21, 0.25) 15px
+  );
+  border-radius: 9999px;
+  box-shadow:
+    0 0 14px rgba(250, 204, 21, 0.9),
+    0 0 28px rgba(245, 158, 11, 0.5);
+  animation: login-lightning-bolt 0.56s ease-out forwards;
+}
+
+.login-lightning-glow {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 40px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(250, 204, 21, 0.35) 0%, rgba(250, 204, 21, 0.06) 45%, rgba(0, 0, 0, 0) 75%);
+  filter: blur(6px);
+  animation: login-lightning-bolt 0.56s ease-out forwards;
+}
+
+.login-lightning-flash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(250, 204, 21, 0.14) 0%, rgba(250, 204, 21, 0.05) 28%, rgba(0, 0, 0, 0) 58%);
+  animation: login-lightning-flash 0.56s ease-out forwards;
+}

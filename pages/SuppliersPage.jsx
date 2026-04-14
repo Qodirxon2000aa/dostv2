@@ -199,7 +199,7 @@ const SuppliersPage = ({ objects = [], canMutate = true }) => {
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tight truncate">Beruvchilar</h1>
             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
-              Omborlarga bog‘lash va umumiy ro‘yxat
+              Omborlarga maxsulot beruvchilar
             </p>
           </div>
         </div>

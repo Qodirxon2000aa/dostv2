@@ -98,7 +98,7 @@ const AppSidebar = ({
                 onNavigate={closeOnNav}
                 badgeCount={supportChatUnreadTotal}
               />
-              <NavItem to="/logs" icon={<ScrollText size={20} />} label="Loglar" onNavigate={closeOnNav} />
+              <NavItem to="/logs" icon={<ScrollText size={20} />} label="Amallar" onNavigate={closeOnNav} />
               {isSuperAdmin && (
                 <NavItem to="/add-super-admin" icon={<Shield size={20} />} label="Super admin qo‘shish" onNavigate={closeOnNav} />
               )}

@@ -86,7 +86,7 @@ const LogsPage = ({ logs: propLogs = [], onRefresh }) => {
             </div>
             <div>
               <h1 className="text-2xl font-black text-white italic uppercase tracking-tight">
-                Loglar <span className="text-amber-400">jadvali</span>
+                So'nggi amallar <span className="text-amber-400">jadvali</span>
               </h1>
               <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
                 Tartib: yangi → eski · sana, vaqt, kim, amal
@@ -120,7 +120,7 @@ const LogsPage = ({ logs: propLogs = [], onRefresh }) => {
           />
         </div>
         <p className="text-[9px] text-slate-600 font-bold mt-2">
-          Jami: <span className="text-slate-400">{sorted.length}</span> ta yozuv
+          Jami: <span className="text-slate-400">{sorted.length}</span> ta amal
         </p>
       </div>
 

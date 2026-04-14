@@ -8,18 +8,31 @@ export function getSocketOrigin() {
 }
 
 let socket = null;
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    if (!raw) return '';
+    const user = JSON.parse(raw);
+    return user?.token ? String(user.token) : '';
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Bitta umumiy Socket.io ulanishi (xodim / admin roomlariga alohida join qilinadi).
  */
 export function ensureRealtimeSocket() {
   if (typeof window === 'undefined') return null;
+  const token = getAuthToken();
+  if (!token) return null;
   if (socket?.connected) return socket;
   const origin = getSocketOrigin();
   socket = io(origin, {
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
+    auth: { token },
   });
   return socket;
 }
