@@ -4,9 +4,6 @@ import { api } from '../utils/api';
 import { filterWorkforceEmployees } from '../utils/employeeRoles';
 import { ensureRealtimeSocket } from '../utils/realtime';
 
-/** Barcha faol ishchi xodimlarga bir xil matn */
-const RECIPIENT_ALL_ACTIVE = '__ALL_ACTIVE__';
-
 const QUICK_MESSAGES = [
   { label: 'Yaxshi ish!', text: 'Yaxshi ish! Davom eting.' },
   { label: 'Rahmat', text: 'Rahmat, zo‘r ishlayapsiz.' },
@@ -32,6 +29,7 @@ const formatWhen = (value) => {
 };
 
 const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, canMutate = true }) => {
+  const [deliveryMode, setDeliveryMode] = useState('single'); // single | broadcast
   const [empId, setEmpId] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -44,12 +42,12 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
   }, [employees]);
 
   const selectedName = useMemo(() => {
-    if (empId === RECIPIENT_ALL_ACTIVE) {
+    if (deliveryMode === 'broadcast') {
       return activeEmps.length ? `Barcha faol xodimlar (${activeEmps.length} ta)` : 'Barcha faol xodimlar';
     }
     const e = activeEmps.find((x) => String(x._id || x.id) === String(empId));
     return e?.name || '';
-  }, [activeEmps, empId]);
+  }, [activeEmps, empId, deliveryMode]);
 
   const pushFeed = useCallback((item) => {
     if (!item || typeof item !== 'object') return;
@@ -105,13 +103,13 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
 
   const handleSend = async () => {
     if (!canMutate) return;
-    if (!empId) return alert('Qabul qiluvchini tanlang');
+    if (deliveryMode === 'single' && !empId) return alert('Ishchini tanlang');
     const text = String(message || '').trim();
     if (!text) return alert('Xabar matnini kiriting yoki shablon tanlang');
     setSubmitting(true);
     try {
       const performer = currentUser?.name ? String(currentUser.name).trim() : 'Admin';
-      if (empId === RECIPIENT_ALL_ACTIVE) {
+      if (deliveryMode === 'broadcast') {
         if (!activeEmps.length) {
           alert('Faol ishchi xodimlar ro‘yxati bo‘sh');
           return;
@@ -200,11 +198,44 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
       {canMutate && (
       <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 sm:p-5 space-y-4">
         <div>
+          <label className="text-[8px] text-slate-500 font-black uppercase tracking-widest block mb-2">
+            Yuborish rejimi
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setDeliveryMode('single')}
+              className={`px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${
+                deliveryMode === 'single'
+                  ? 'bg-sky-500/15 border-sky-500/45 text-sky-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              Bitta ishchiga
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryMode('broadcast');
+                setEmpId('');
+              }}
+              className={`px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${
+                deliveryMode === 'broadcast'
+                  ? 'bg-amber-500/15 border-amber-500/45 text-amber-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              Hammaga (admin)
+            </button>
+          </div>
+        </div>
+
+        <div>
           <label className="text-[8px] text-slate-500 font-black uppercase tracking-widest block mb-1.5">
             Qabul qiluvchi
           </label>
           <div className="relative">
-            {empId === RECIPIENT_ALL_ACTIVE ? (
+            {deliveryMode === 'broadcast' ? (
               <Megaphone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-500 pointer-events-none" />
             ) : (
               <Users size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
@@ -212,12 +243,10 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
             <select
               value={empId}
               onChange={(e) => setEmpId(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 text-white pl-9 pr-4 py-3 rounded-xl font-bold text-sm outline-none transition-all appearance-none"
+              disabled={deliveryMode === 'broadcast'}
+              className="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 text-white pl-9 pr-4 py-3 rounded-xl font-bold text-sm outline-none transition-all appearance-none disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <option value="">— Tanlang —</option>
-              <option value={RECIPIENT_ALL_ACTIVE}>
-                Hammaga (barcha faol xodimlarga bir xil xabar)
-              </option>
               {activeEmps.map((e) => (
                 <option key={e._id || e.id} value={e._id || e.id}>
                   {e.name} ({e.position || '—'})
@@ -226,6 +255,11 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
             </select>
             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
           </div>
+          {deliveryMode === 'broadcast' && (
+            <p className="mt-1.5 text-[10px] text-amber-300 font-bold">
+              Xabar barcha faol ishchilarga yuboriladi ({activeEmps.length} ta).
+            </p>
+          )}
         </div>
 
         <div>
@@ -261,7 +295,7 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
           <p className="text-[9px] text-slate-600 font-bold mt-1 text-right">{message.length}/2000</p>
         </div>
 
-        {empId && message.trim() && (
+        {(deliveryMode === 'broadcast' || empId) && message.trim() && (
           <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-3">
             <p className="text-[9px] text-slate-500 font-black uppercase">Qabul qiluvchi</p>
             <p className="text-white font-black text-sm mt-0.5 leading-snug">{selectedName}</p>
@@ -272,12 +306,12 @@ const NotificationsSendPage = ({ employees = [], currentUser, onLog, onRefresh, 
         <button
           type="button"
           onClick={handleSend}
-          disabled={submitting || !empId || !message.trim()}
+          disabled={submitting || (deliveryMode === 'single' && !empId) || !message.trim()}
           className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-sky-500/10"
         >
           {submitting ? (
             'Yuborilmoqda...'
-          ) : empId === RECIPIENT_ALL_ACTIVE ? (
+          ) : deliveryMode === 'broadcast' ? (
             <>
               <Megaphone size={14} /> Hammaga yuborish
             </>
