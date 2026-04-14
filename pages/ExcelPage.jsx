@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FileSpreadsheet, Download, Users, CreditCard, Building2,
   CalendarCheck, TrendingUp, Filter, CheckCircle, Zap,
-  BarChart3, FileText, Clock, Star, Package, Sparkles, History,
+  BarChart3, FileText, Clock, Star, Package, Sparkles, History, Eye, X,
 } from 'lucide-react';
 import { api } from '../utils/api';
 import {
@@ -41,6 +41,67 @@ const readExportHistory = () => {
   }
 };
 
+/** Jadval qatorlarini Excel ko‘rinishida ko‘rsatish (modal ichida) */
+const padRow = (row, maxCols) => {
+  const r = Array.isArray(row) ? row : [];
+  return Array.from({ length: maxCols }, (_, i) => r[i]);
+};
+
+const formatPreviewCell = (cell) => {
+  if (cell === null || cell === undefined) return '';
+  if (typeof cell === 'number' && Number.isFinite(cell)) return cell.toLocaleString('uz-UZ');
+  return String(cell);
+};
+
+const ExcelPreviewTable = ({ rows }) => {
+  if (!rows || !Array.isArray(rows) || rows.length === 0) {
+    return <p className="text-sm font-bold text-slate-600 p-4">Jadval bo‘sh.</p>;
+  }
+  const maxCols = Math.max(1, ...rows.map((r) => (Array.isArray(r) ? r.length : 0)));
+  return (
+    <table className="w-max min-w-full border-collapse bg-white text-[11px] leading-tight text-slate-900 shadow-sm">
+      <tbody>
+        {rows.map((row, ri) => {
+          if (!Array.isArray(row)) return null;
+          if (row.length === 0) {
+            return (
+              <tr key={`gap-${ri}`}>
+                <td colSpan={maxCols} className="h-2.5 border border-[#bfbfbf] bg-[#e7e6e6] p-0" />
+              </tr>
+            );
+          }
+          const padded = padRow(row, maxCols);
+          const isHeader = ri === 0;
+          return (
+            <tr
+              key={ri}
+              className={
+                isHeader
+                  ? 'bg-[#217346] text-white'
+                  : ri % 2 === 0
+                    ? 'bg-white'
+                    : 'bg-[#f2f2f2]'
+              }
+            >
+              {padded.map((cell, ci) => (
+                <td
+                  key={ci}
+                  className={`border border-[#bfbfbf] px-2 py-1.5 align-top ${
+                    isHeader ? 'font-bold text-center' : ''
+                  } ${typeof cell === 'number' ? 'text-right tabular-nums' : ''} max-w-[min(42vw,22rem)]`}
+                  title={formatPreviewCell(cell)}
+                >
+                  <span className="line-clamp-3 break-words whitespace-pre-wrap">{formatPreviewCell(cell)}</span>
+                </td>
+              ))}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
+
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
    ───────────────────────────────────────────── */
@@ -57,6 +118,7 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
   const [warehouseBundles, setWarehouseBundles] = useState([]);
   const [whLoading, setWhLoading]           = useState(false);
   const [exportHistory, setExportHistory]   = useState(readExportHistory);
+  const [preview, setPreview]               = useState(null);
 
   const approvedPayroll = useMemo(() => payroll.filter(p => p.status === 'APPROVED'), [payroll]);
 
@@ -968,11 +1030,91 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
     setDownloading(null);
   };
 
+  const handlePreview = (report) => {
+    if (report.format === 'JSON') {
+      const payload = {
+        exportDate: new Date().toISOString(),
+        summary: {
+          employees: workforce.length,
+          attendance: attendance.length,
+          payroll: approvedPayroll.length,
+          objects: objects.length,
+        },
+        note: 'To‘liq JSON fayl yuklab olinganda barcha maydonlar bo‘ladi.',
+      };
+      setPreview({
+        title: report.title,
+        mode: 'json',
+        jsonText: JSON.stringify(payload, null, 2),
+      });
+      return;
+    }
+    let data;
+    try {
+      data = report.rows();
+    } catch (e) {
+      alert('Ko‘rishda xatolik: ' + e.message);
+      return;
+    }
+    if (data == null) {
+      alert("Bu hisobot uchun filtrni to‘ldiring (masalan, obyekt) yoki ma'lumot yo‘q.");
+      return;
+    }
+    setPreview({ title: report.title, mode: 'table', rows: data });
+  };
+
+  const closePreview = () => setPreview(null);
+
   const totalPaid   = approvedPayroll.reduce((s, p) => s + (Number(p.calculatedSalary)||0), 0);
   const totalBudget = objects.reduce((s, o) => s + (Number(o.totalBudget)||0), 0);
 
   return (
     <div className="space-y-6 pb-10">
+      {preview && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="excel-preview-title"
+          onClick={closePreview}
+        >
+          <div
+            className="w-full max-w-[min(96vw,1440px)] max-h-[min(92vh,900px)] flex flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-800 shrink-0 bg-slate-950/90">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Jadval ko‘rinishi (Excel uslubi)</p>
+                <h2 id="excel-preview-title" className="text-white font-black text-sm sm:text-base truncate">
+                  {preview.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closePreview}
+                className="shrink-0 p-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all active:scale-95"
+                aria-label="Yopish"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto custom-scroll bg-[#cfcfcf] p-2 sm:p-3">
+              {preview.mode === 'json' ? (
+                <pre className="text-[11px] font-mono text-slate-900 bg-white border border-[#bfbfbf] rounded-lg p-3 overflow-auto max-h-[min(70vh,640px)] whitespace-pre-wrap break-words">
+                  {preview.jsonText}
+                </pre>
+              ) : (
+                <ExcelPreviewTable rows={preview.rows} />
+              )}
+            </div>
+            <div className="px-4 py-2.5 border-t border-slate-800 bg-slate-950/90 shrink-0">
+              <p className="text-[10px] text-slate-500 font-bold text-center">
+                Chapdan o‘ngga surib barcha ustunlarni ko‘ring · yuklab olish uchun pastdagi «Yuklab olish» tugmasidan foydalaning
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SARLAVHA ── */}
       <div className="relative bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-3xl border border-slate-800 p-6 overflow-hidden shadow-2xl">
@@ -1112,13 +1254,27 @@ const Excel = ({ employees = [], attendance = [], payroll = [], objects = [] }) 
                   <span className="text-[9px] text-slate-500 font-bold">{report.count} ta yozuv</span>
                 </div>
               )}
-              <button onClick={() => handleDownload(report)} disabled={!!downloading}
-                className={`w-full py-2.5 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 shadow-lg text-white ${btnCls}`}>
-                {isLoading
-                  ? <><Clock size={13} className="animate-spin"/> Tayyorlanmoqda...</>
-                  : <><Download size={13}/> Yuklab olish</>
-                }
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePreview(report)}
+                  disabled={!!downloading}
+                  className="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 border border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-800 hover:border-slate-500"
+                >
+                  <Eye size={13} /> Ko‘rish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(report)}
+                  disabled={!!downloading}
+                  className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 shadow-lg text-white ${btnCls}`}
+                >
+                  {isLoading
+                    ? <><Clock size={13} className="animate-spin"/> Tayyorlanmoqda...</>
+                    : <><Download size={13}/> Yuklab olish</>
+                  }
+                </button>
+              </div>
             </div>
           );
         })}
