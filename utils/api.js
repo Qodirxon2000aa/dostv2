@@ -48,6 +48,15 @@ const request = async (method, path, body = null) => {
   }
 
   if (!res.ok) {
+    // Token eskirganda 401 — localStorage-da user qolsa, ma'lumotlar yuklanmay "bo'sh" ekran bo'ladi
+    if (res.status === 401 && token && path !== '/auth/login') {
+      try {
+        localStorage.removeItem('currentUser');
+      } catch {
+        /* ignore */
+      }
+      if (typeof window !== 'undefined') window.location.reload();
+    }
     throw new Error(data.message || data.error || `Server xatosi: ${res.status}`);
   }
 
