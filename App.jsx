@@ -294,7 +294,7 @@ const App = () => {
                             userRole={currentUser.role} 
                             onLog={addLog} 
                             onRefresh={loadData}
-                            canMutate={isSuperAdmin}
+                            canMutate={false}
                           />
                         ) : <Navigate to="/" />}
                       />
