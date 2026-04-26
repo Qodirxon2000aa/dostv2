@@ -1,7 +1,8 @@
 // api.js — Vite: .env da VITE_API_URL=http://localhost:5000/api (oxirida bo'sh joy bo'lmasin)
 const BASE_URL = (() => {
   const fromEnv = String(import.meta.env.VITE_API_URL ?? '').trim();
-  return fromEnv || 'https://nodirkhanov.uz/api';
+  if (fromEnv) return fromEnv;
+  return import.meta.env.DEV ? '/api' : 'https://nodirkhanov.uz/api';
 })();
 
 const getToken = () => {
@@ -38,13 +39,27 @@ const request = async (method, path, body = null) => {
   };
   if (body) options.body = JSON.stringify(body);
 
-  const res = await fetch(`${BASE_URL}${path}`, options);
-
-  let data;
+  let res;
   try {
-    data = await res.json();
-  } catch {
-    throw new Error("Server javobi noto'g'ri");
+    res = await fetch(`${BASE_URL}${path}`, options);
+  } catch (e) {
+    const m = e && typeof e.message === 'string' ? e.message : String(e);
+    if (m.includes('Failed to fetch')) {
+      throw new Error(
+        "Tarmoq xatosi (Failed to fetch). Internet, DNS yoki API domenini tekshiring; server javobi kelmadi."
+      );
+    }
+    throw new Error(m || 'Tarmoq xatosi');
+  }
+
+  const raw = await res.text();
+  let data = null;
+  if (raw.trim()) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("Server javobi noto'g'ri (JSON emas)");
+    }
   }
 
   if (!res.ok) {
@@ -57,10 +72,10 @@ const request = async (method, path, body = null) => {
       }
       if (typeof window !== 'undefined') window.location.reload();
     }
-    throw new Error(data.message || data.error || `Server xatosi: ${res.status}`);
+    throw new Error(data?.message || data?.error || `Server xatosi: ${res.status}`);
   }
-
-  return data;
+  if (data !== null) return data;
+  return { success: true };
 };
 
 export const api = {

@@ -2,6 +2,9 @@ import { io } from 'socket.io-client';
 
 export function getSocketOrigin() {
   const fromEnv = String(import.meta.env.VITE_API_URL ?? '').trim().replace(/\/$/, '');
+  if (!fromEnv && import.meta.env.DEV) {
+    return window.location.origin;
+  }
   const base = fromEnv || 'https://nodirkhanov.uz/api';
   const withoutApi = base.replace(/\/api\/?$/i, '');
   return withoutApi || base;

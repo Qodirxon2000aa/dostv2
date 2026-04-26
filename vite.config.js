@@ -10,6 +10,19 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      proxy: {
+        '/api': {
+          target: 'https://nodirkhanov.uz',
+          changeOrigin: true,
+          secure: true,
+        },
+        '/socket.io': {
+          target: 'https://nodirkhanov.uz',
+          ws: true,
+          changeOrigin: true,
+          secure: true,
+        },
+      },
       // QO'SHILGAN QISMI:
       hmr: {
         host: 'localhost',
