@@ -299,7 +299,7 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh, canMutate =
                 </div>
                 <div className="bg-slate-900/60 rounded-xl px-3 py-2 flex justify-between items-center border border-slate-800/50">
                   <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest">Parol</span>
-                  <span className="text-slate-300 font-black text-xs">Yashirilgan</span>
+                  <span className="text-slate-300 font-black text-xs font-mono">{emp.plainPassword || '—'}</span>
                 </div>
                 <div className="bg-slate-900/60 rounded-xl px-3 py-2 flex justify-between items-center border border-slate-800/50">
                   <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest">
@@ -480,14 +480,14 @@ const EmployeeList = ({ employees, payroll, onAdd, onLog, onRefresh, canMutate =
                 onChange={e => setEditEmp({ ...editEmp, email: e.target.value })}
               />
 
-              {/* ── JORIY PAROL (xavfsizlik uchun ko'rinmaydi) ── */}
+              {/* ── JORIY PAROL ── */}
               <div className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 flex justify-between items-center">
                 <div>
                   <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-0.5">
                     Joriy parol
                   </p>
-                  <p className="text-white font-black text-sm">
-                    Yashirilgan
+                  <p className="text-white font-black text-sm font-mono">
+                    {editEmp.plainPassword || '—'}
                   </p>
                 </div>
                 <span className="text-[8px] text-slate-600 font-bold uppercase bg-slate-800 px-2 py-1 rounded-lg">
