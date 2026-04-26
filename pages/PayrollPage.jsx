@@ -453,14 +453,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     <span className="text-rose-400 font-black text-xs">−{bal.totalFines.toLocaleString()} UZS</span>
                   </div>
                 )}
-                {bal.totalBonuses > 0 && (
-                  <div className="mb-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between">
-                    <span className="text-[8px] text-emerald-400 font-black uppercase flex items-center gap-1">
-                      <Gift size={10} /> Bonus
-                    </span>
-                    <span className="text-emerald-400 font-black text-xs">+{bal.totalBonuses.toLocaleString()} UZS</span>
-                  </div>
-                )}
                 <div className="grid grid-cols-2 gap-3">
                   {/* BUTTON */}
                   <button
@@ -1143,14 +1135,6 @@ const Payroll = ({ employees, attendance, payroll, fines = [], bonuses = [], obj
                     <div className="flex justify-between pt-1 border-t border-slate-800">
                       <span className="text-rose-400 text-[9px] font-black uppercase">⚠ Jarimalar</span>
                       <span className="text-rose-400 font-black text-sm">−{bal.totalFines.toLocaleString()} UZS</span>
-                    </div>
-                  )}
-                  {bal.totalBonuses > 0 && (
-                    <div className="flex justify-between pt-1 border-t border-slate-800">
-                      <span className="text-emerald-400 text-[9px] font-black uppercase flex items-center gap-1">
-                        <Gift size={11} /> Bonuslar
-                      </span>
-                      <span className="text-emerald-400 font-black text-sm">+{bal.totalBonuses.toLocaleString()} UZS</span>
                     </div>
                   )}
                   <div className="flex justify-between pt-2 border-t border-slate-800">

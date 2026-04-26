@@ -72,14 +72,30 @@
     (function () {
       try {
         var t = localStorage.getItem('app_theme');
-        var light = false;
-        if (t === 'light') light = true;
-        else if (t === 'system')
-          light = !window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (light) {
-          document.documentElement.classList.add('theme-light');
-          document.body.style.backgroundColor = '#f1f5f9';
+        var mapped = t;
+        if (t === 'light') mapped = 'minimal-light';
+        else if (t === 'dark' || t === 'system') mapped = 'dark-premium';
+        if (!mapped) mapped = 'dark-premium';
+        document.documentElement.setAttribute('data-theme', mapped);
+        document.documentElement.classList.add('theme-' + mapped);
+        if (mapped === 'minimal-light') document.documentElement.classList.add('theme-light');
+        if (mapped === 'minimal-light') {
+          document.body.style.background = '#f8fafc';
           document.body.style.color = '#0f172a';
+        } else if (mapped === 'glassmorphism') {
+          document.body.style.background =
+            'radial-gradient(circle at top left, #312e81 0%, #0f172a 45%, #111827 100%)';
+          document.body.style.color = '#e2e8f0';
+        } else if (mapped === 'corporate-blue') {
+          document.body.style.background = '#102a43';
+          document.body.style.color = '#e6f1ff';
+        } else if (mapped === 'colorful-dashboard') {
+          document.body.style.background =
+            'linear-gradient(145deg, #1f1147 0%, #311b92 35%, #0f172a 100%)';
+          document.body.style.color = '#f8fafc';
+        } else {
+          document.body.style.background = '#0b1220';
+          document.body.style.color = '#f8fafc';
         }
         var fs = localStorage.getItem('app_font_scale');
         if (fs === 'sm') document.documentElement.style.fontSize = '87.5%';

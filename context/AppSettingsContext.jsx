@@ -13,6 +13,62 @@ const STORAGE = {
   reducedMotion: 'app_reduced_motion',
 };
 
+export const THEME_OPTIONS = [
+  {
+    id: 'minimal-light',
+    label: 'Minimal Light',
+    subtitle: 'Clean UI',
+    description: 'Soft white surfaces and clear typography',
+    themeColor: '#f8fafc',
+    bodyBg: '#f8fafc',
+    bodyColor: '#0f172a',
+  },
+  {
+    id: 'dark-premium',
+    label: 'Dark Mode',
+    subtitle: 'Premium feel',
+    description: 'Deep contrast with elegant dark palette',
+    themeColor: '#0b1220',
+    bodyBg: '#0b1220',
+    bodyColor: '#f8fafc',
+  },
+  {
+    id: 'glassmorphism',
+    label: 'Glassmorphism',
+    subtitle: 'Modern blur style',
+    description: 'Frosted cards on glowing gradient backdrop',
+    themeColor: '#0f172a',
+    bodyBg: 'radial-gradient(circle at top left, #312e81 0%, #0f172a 45%, #111827 100%)',
+    bodyColor: '#e2e8f0',
+  },
+  {
+    id: 'corporate-blue',
+    label: 'Corporate Blue',
+    subtitle: 'Classic Business',
+    description: 'Calm blue-gray corporate dashboard look',
+    themeColor: '#102a43',
+    bodyBg: '#102a43',
+    bodyColor: '#e6f1ff',
+  },
+  {
+    id: 'colorful-dashboard',
+    label: 'Colorful Dashboard',
+    subtitle: 'Startup style',
+    description: 'Vibrant gradients and energetic accents',
+    themeColor: '#1f1147',
+    bodyBg: 'linear-gradient(145deg, #1f1147 0%, #311b92 35%, #0f172a 100%)',
+    bodyColor: '#f8fafc',
+  },
+];
+
+const THEME_IDS = new Set(THEME_OPTIONS.map((t) => t.id));
+const DEFAULT_THEME = 'dark-premium';
+const LEGACY_THEME_MAP = {
+  light: 'minimal-light',
+  dark: 'dark-premium',
+  system: 'dark-premium',
+};
+
 const FONT_SCALE_MAP = {
   sm: '87.5%',
   md: '100%',
@@ -25,9 +81,10 @@ const AppSettingsContext = createContext(null);
 function readStoredTheme() {
   try {
     const v = localStorage.getItem(STORAGE.theme);
-    if (v === 'light' || v === 'dark' || v === 'system') return v;
+    if (THEME_IDS.has(v)) return v;
+    if (LEGACY_THEME_MAP[v]) return LEGACY_THEME_MAP[v];
   } catch { /* ignore */ }
-  return 'dark';
+  return DEFAULT_THEME;
 }
 
 function readStoredFontScale() {
@@ -50,36 +107,28 @@ export function AppSettingsProvider({ children }) {
   const [theme, setThemeState] = useState(readStoredTheme);
   const [fontScale, setFontScaleState] = useState(readStoredFontScale);
   const [reducedMotion, setReducedMotionState] = useState(readStoredReducedMotion);
-  const [systemDark, setSystemDark] = useState(() =>
-    typeof window !== 'undefined'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-      : true
-  );
+  const resolvedTheme = theme;
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => setSystemDark(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-
-  const resolvedTheme = useMemo(() => {
-    if (theme === 'system') return systemDark ? 'dark' : 'light';
-    return theme;
-  }, [theme, systemDark]);
-
-  useEffect(() => {
+    const currentTheme = THEME_OPTIONS.find((t) => t.id === resolvedTheme) || THEME_OPTIONS[1];
     const root = document.documentElement;
-    root.classList.toggle('theme-light', resolvedTheme === 'light');
     root.setAttribute('data-theme', resolvedTheme);
+    const classesToKeep = root.className
+      .split(' ')
+      .filter((c) => c && !c.startsWith('theme-'));
+    root.className = classesToKeep.join(' ');
+    root.classList.add(`theme-${resolvedTheme}`);
+    if (resolvedTheme === 'minimal-light') {
+      root.classList.add('theme-light');
+    }
 
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute('content', resolvedTheme === 'light' ? '#f1f5f9' : '#0f172a');
+      meta.setAttribute('content', currentTheme.themeColor);
     }
 
-    document.body.style.backgroundColor = resolvedTheme === 'light' ? '#f1f5f9' : '#0f172a';
-    document.body.style.color = resolvedTheme === 'light' ? '#0f172a' : '#f8fafc';
+    document.body.style.background = currentTheme.bodyBg;
+    document.body.style.color = currentTheme.bodyColor;
   }, [resolvedTheme]);
 
   useEffect(() => {
@@ -91,6 +140,7 @@ export function AppSettingsProvider({ children }) {
   }, [reducedMotion]);
 
   const setTheme = useCallback((next) => {
+    if (!THEME_IDS.has(next)) return;
     setThemeState(next);
     try {
       localStorage.setItem(STORAGE.theme, next);
@@ -113,7 +163,7 @@ export function AppSettingsProvider({ children }) {
   }, []);
 
   const resetToDefaults = useCallback(() => {
-    setTheme('dark');
+    setTheme(DEFAULT_THEME);
     setFontScale('md');
     setReducedMotion(false);
   }, [setTheme, setFontScale, setReducedMotion]);
@@ -123,6 +173,7 @@ export function AppSettingsProvider({ children }) {
       theme,
       resolvedTheme,
       setTheme,
+      themeOptions: THEME_OPTIONS,
       fontScale,
       setFontScale,
       fontScaleOptions: ['sm', 'md', 'lg', 'xl'],

@@ -562,21 +562,6 @@ const EmployeePortal = ({
               </div>
             )}
 
-            {balanceInfo.totalBonuses > 0 ? (
-              <div className="col-span-2 bg-emerald-500/10 rounded-xl border border-emerald-500/30 p-2 text-center">
-                <p className="text-[7px] text-emerald-400 font-black uppercase mb-1 leading-tight flex items-center justify-center gap-1">
-                  <Gift size={9} /> Bonus
-                </p>
-                <p className="font-black text-sm leading-tight text-emerald-400">+{balanceInfo.totalBonuses.toLocaleString()}</p>
-                <p className="text-[7px] text-emerald-500/50 font-bold mt-0.5">UZS • balansga qo&apos;shilgan</p>
-              </div>
-            ) : (
-              <div className="col-span-2 bg-slate-900/60 rounded-xl border border-slate-800 p-2 text-center">
-                <p className="text-[7px] text-slate-500 font-black uppercase mb-1 leading-tight">Bonus</p>
-                <p className="font-black text-sm leading-tight text-slate-600">0</p>
-                <p className="text-[7px] text-slate-700 font-bold mt-0.5">UZS</p>
-              </div>
-            )}
           </div>
 
           {balanceInfo.totalEarned > 0 && (
@@ -621,7 +606,7 @@ const EmployeePortal = ({
                         ? 'bg-rose-500'
                         : item.to === '/kabinet-bonuslar'
                           ? 'bg-emerald-500'
-                          : 'bg-sky-500'
+                        : 'bg-sky-500'
                     }`}
                   >
                     {item.badge > 99 ? '99+' : item.badge}
@@ -771,6 +756,22 @@ const EmployeePortal = ({
                     </div>
                   </div>
                 )}
+
+            {balanceInfo.totalBonuses > 0 ? (
+              <div className="col-span-2 bg-emerald-500/10 rounded-xl border border-emerald-500/30 p-2 text-center">
+                <p className="text-[7px] text-emerald-400 font-black uppercase mb-1 leading-tight flex items-center justify-center gap-1">
+                  <Gift size={9} /> Bonus
+                </p>
+                <p className="font-black text-sm leading-tight text-emerald-400">+{balanceInfo.totalBonuses.toLocaleString()}</p>
+                <p className="text-[7px] text-emerald-500/50 font-bold mt-0.5">UZS • balansga qo&apos;shilgan</p>
+              </div>
+            ) : (
+              <div className="col-span-2 bg-slate-900/60 rounded-xl border border-slate-800 p-2 text-center">
+                <p className="text-[7px] text-slate-500 font-black uppercase mb-1 leading-tight">Bonus</p>
+                <p className="font-black text-sm leading-tight text-slate-600">0</p>
+                <p className="text-[7px] text-slate-700 font-bold mt-0.5">UZS</p>
+              </div>
+            )}
               </div>
 
               {/* Sana oralig'i */}

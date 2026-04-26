@@ -2,9 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Settings,
-  Sun,
-  Moon,
-  Monitor,
   Type,
   Zap,
   RotateCcw,
@@ -21,7 +18,7 @@ const SettingsPage = () => {
   const {
     theme,
     setTheme,
-    resolvedTheme,
+    themeOptions,
     fontScale,
     setFontScale,
     fontScaleOptions,
@@ -30,11 +27,7 @@ const SettingsPage = () => {
     resetToDefaults,
   } = useAppSettings();
 
-  const themeButtons = [
-    { id: 'light', label: 'Yorug‘', icon: Sun, desc: 'Oq fon' },
-    { id: 'dark', label: 'Qorong‘i', icon: Moon, desc: 'Standart' },
-    { id: 'system', label: 'Tizim', icon: Monitor, desc: 'Qurilma sozlamasi' },
-  ];
+  const selectedTheme = themeOptions.find((t) => t.id === theme) || themeOptions[0];
 
   const fontLabels = {
     sm: 'Kichik',
@@ -71,32 +64,41 @@ const SettingsPage = () => {
           </h2>
           <p className="text-[11px] text-slate-500 font-bold mt-1">
             Hozir:{' '}
-            <span className="text-amber-400/90">
-              {resolvedTheme === 'light' ? 'Yorug‘' : 'Qorong‘i'}
-            </span>
-            {theme === 'system' ? ' (tizim)' : ''}
+            <span className="text-amber-400/90">{selectedTheme.label}</span>
+            <span className="text-slate-600"> ({selectedTheme.subtitle})</span>
           </p>
         </div>
         <div className="p-4 sm:p-5 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-            {themeButtons.map(({ id, label, icon: Icon, desc }) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            {themeOptions.map(({ id, label, subtitle, description }) => {
               const on = theme === id;
+              const previewClass =
+                id === 'minimal-light'
+                  ? 'bg-gradient-to-br from-slate-100 via-white to-slate-200 border-slate-300'
+                  : id === 'dark-premium'
+                    ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-slate-700'
+                    : id === 'glassmorphism'
+                      ? 'bg-gradient-to-br from-indigo-900 via-slate-900 to-violet-900 border-indigo-400/40'
+                      : id === 'corporate-blue'
+                        ? 'bg-gradient-to-br from-blue-900 via-slate-900 to-blue-800 border-blue-500/40'
+                        : 'bg-gradient-to-br from-fuchsia-700 via-violet-700 to-cyan-600 border-fuchsia-300/40';
               return (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setTheme(id)}
-                  className={`min-h-[52px] rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  className={`rounded-xl border px-3 py-3 text-left transition-all ${
                     on
                       ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/20'
                       : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Icon size={18} className="shrink-0" />
+                  <div className={`h-14 rounded-lg border mb-2 ${previewClass} ${id === 'glassmorphism' ? 'backdrop-blur-md' : ''}`} />
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-black text-sm">{label}</span>
+                    <span className="text-[10px] font-black uppercase text-slate-500">{subtitle}</span>
                   </div>
-                  <p className="text-[10px] font-bold text-slate-500 mt-1 pl-[26px]">{desc}</p>
+                  <p className="text-[10px] font-bold text-slate-500 mt-1">{description}</p>
                 </button>
               );
             })}
