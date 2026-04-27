@@ -9,3 +9,4 @@ export { default as EmployeeAttendancePage } from './EmployeeAttendancePage';
 export { default as EmployeeMessagesPage } from './EmployeeMessagesPage';
 export { default as EmployeeFinesPage } from './EmployeeFinesPage';
 export { default as EmployeeBonusesPage } from './EmployeeBonusesPage';
+export { default as EmployeeLocationPage } from './EmployeeLocationPage';

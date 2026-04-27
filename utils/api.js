@@ -87,6 +87,8 @@ export const api = {
   createEmployee: (body)     => request('POST',   '/employees', body),
   updateEmployee: (id, body) => request('PUT',    `/employees/${id}`, body),
   deleteEmployee: (id)       => request('DELETE', `/employees/${id}`),
+  updateMyLocation: (body)   => request('PATCH', '/employees/me/location', body),
+  getLiveLocations: ()       => request('GET', '/employees/locations/live'),
 
   // ── Attendance ────────────────────────────────────────────────
   getAttendance: (params = {}) => {

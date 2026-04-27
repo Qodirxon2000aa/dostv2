@@ -3,3 +3,4 @@
  */
 export { default as AddSuperAdminPage } from './AddSuperAdminPage';
 export { default as AdminSupportChatPage } from './AdminSupportChatPage';
+export { default as AdminLocationsPage } from './AdminLocationsPage';

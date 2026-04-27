@@ -586,6 +586,7 @@ const EmployeePortal = ({
               { to: '/kabinet-xabarlar', label: 'Xabarlar', sub: 'Rahbariyatdan', Icon: Bell, accent: 'text-sky-400', badge: unreadNotifications },
               { to: '/kabinet-jarimalar', label: 'Jarimalar', sub: 'Tarix', Icon: AlertTriangle, accent: 'text-rose-400', badge: myActiveFines.length },
               { to: '/kabinet-bonuslar', label: 'Bonuslar', sub: 'Tarix', Icon: Gift, accent: 'text-emerald-400', badge: myActiveBonuses.length },
+              { to: '/kabinet-joylashuv', label: 'Joylashuv', sub: 'GPS holati', Icon: Clock, accent: 'text-cyan-400', badge: 0 },
             ].map((item) => (
               <Link
                 key={item.to}

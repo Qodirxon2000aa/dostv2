@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Menu, ShieldCheck, Eye } from 'lucide-react';
+import { Menu, ShieldCheck, Eye, LocateFixed } from 'lucide-react';
 
 import { api } from './utils/api';
 import { useAdminSupportUnread } from './hooks/useAdminSupportUnread';
@@ -30,8 +30,9 @@ import {
   EmployeeMessagesPage,
   EmployeeFinesPage,
   EmployeeBonusesPage,
+  EmployeeLocationPage,
 } from './pages/employeePortal';
-import { AddSuperAdminPage, AdminSupportChatPage } from './pages/admin';
+import { AddSuperAdminPage, AdminSupportChatPage, AdminLocationsPage } from './pages/admin';
 
 /** Support chat mobil: yon padding yo‘q, kontent header ostidan to‘liq balandlik */
 function MainScrollArea({ adminBanner, children }) {
@@ -68,6 +69,11 @@ const App = () => {
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
   );
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [locationGateState, setLocationGateState] = useState('idle');
+  const [locationGateMessage, setLocationGateMessage] = useState('');
+  const locationWatchIdRef = useRef(null);
+  const locationPollRef = useRef(null);
+  const lastLocationSentAtRef = useRef(0);
 
   const [employees,  setEmployees]  = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -168,6 +174,162 @@ const App = () => {
   const isSuperAdmin   = currentUser?.role === 'SUPER_ADMIN';
   const isAdminOrSuper = isSuperAdmin || currentUser?.role === 'ADMIN';
   const supportChatUnreadTotal = useAdminSupportUnread(Boolean(currentUser && isAdminOrSuper));
+
+  useEffect(() => {
+    if (!currentUser || isAdminOrSuper) {
+      if (locationWatchIdRef.current != null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(locationWatchIdRef.current);
+      }
+      if (locationPollRef.current != null) {
+        clearInterval(locationPollRef.current);
+      }
+      locationWatchIdRef.current = null;
+      locationPollRef.current = null;
+      setLocationGateState('idle');
+      setLocationGateMessage('');
+      return undefined;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationGateState('blocked');
+      setLocationGateMessage('Brauzer geolokatsiyani qo‘llamaydi.');
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const stopTracking = () => {
+      if (locationWatchIdRef.current != null) {
+        navigator.geolocation.clearWatch(locationWatchIdRef.current);
+        locationWatchIdRef.current = null;
+      }
+      if (locationPollRef.current != null) {
+        clearInterval(locationPollRef.current);
+        locationPollRef.current = null;
+      }
+    };
+
+    const sendLocation = (coords) => {
+      const now = Date.now();
+      if (now - lastLocationSentAtRef.current < 15000) return;
+      lastLocationSentAtRef.current = now;
+      api.updateMyLocation({
+        lat: coords.latitude,
+        lng: coords.longitude,
+        accuracy: coords.accuracy,
+        speed: coords.speed,
+        heading: coords.heading,
+      }).catch((err) => {
+        console.error('Lokatsiya yuborilmadi:', err);
+      });
+    };
+
+    const onSuccess = (position) => {
+      if (!position?.coords) return;
+      setLocationGateState('granted');
+      setLocationGateMessage('');
+      sendLocation(position.coords);
+    };
+
+    const onError = (err) => {
+      if (err?.code === 1) {
+        setLocationGateState('blocked');
+        setLocationGateMessage('Joylashuv uchun Allow berilmagan.');
+      } else if (err?.code === 2) {
+        setLocationGateState('checking');
+        setLocationGateMessage('Joylashuv aniqlanmadi. GPS/Location Services ni yoqing.');
+      } else if (err?.code === 3) {
+        setLocationGateState('checking');
+        setLocationGateMessage('Joylashuv olishda timeout bo‘ldi, qayta urinish ketmoqda.');
+      }
+    };
+
+    const startTracking = () => {
+      if (cancelled) return;
+      setLocationGateState('checking');
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      });
+      locationWatchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 5000,
+      });
+      locationPollRef.current = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 0,
+        });
+      }, 20000);
+    };
+
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((perm) => {
+          if (cancelled) return;
+          if (perm.state === 'denied') {
+            setLocationGateState('blocked');
+            setLocationGateMessage('Joylashuv ruxsati brauzerda bloklangan.');
+            return;
+          }
+          startTracking();
+          perm.onchange = () => {
+            if (perm.state === 'denied') {
+              stopTracking();
+              setLocationGateState('blocked');
+              setLocationGateMessage('Joylashuv ruxsati bloklandi.');
+            } else {
+              startTracking();
+            }
+          };
+        })
+        .catch(() => {
+          startTracking();
+        });
+    } else {
+      startTracking();
+    }
+
+    return () => {
+      cancelled = true;
+      stopTracking();
+    };
+  }, [currentUser, isAdminOrSuper]);
+
+  const isEmployeeLocationLocked = Boolean(
+    currentUser &&
+    !isAdminOrSuper &&
+    locationGateState !== 'granted'
+  );
+
+  if (isEmployeeLocationLocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-[2rem] border border-rose-500/30 bg-slate-900 p-6 text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl border border-rose-500/30 bg-rose-500/10 flex items-center justify-center mb-4">
+            <LocateFixed className="text-rose-400" size={24} />
+          </div>
+          <h1 className="text-white text-xl font-black">Lokatsiyaga ruxsat kerak</h1>
+          <p className="text-slate-400 text-sm font-semibold mt-2 leading-relaxed">
+            Saytga kirish uchun geolokatsiya (`Allow`) yoqilishi shart.
+          </p>
+          {locationGateMessage ? (
+            <p className="text-amber-300 text-xs font-bold mt-3">{locationGateMessage}</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-5 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black uppercase tracking-wide"
+          >
+            Qayta tekshirish
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -431,6 +593,12 @@ const App = () => {
                           <AdminSupportChatPage employees={employees} currentUser={currentUser} canMutate={isSuperAdmin} />
                         ) : <Navigate to="/" />}
                       />
+                      <Route
+                        path="/locations"
+                        element={isAdminOrSuper ? (
+                          <AdminLocationsPage employees={employees} />
+                        ) : <Navigate to="/" />}
+                      />
 
                       <Route
                         path="/my-portal"
@@ -550,6 +718,19 @@ const App = () => {
                               employees={employees}
                               bonuses={bonuses}
                               supportChatEnabled={!isAdminOrSuper}
+                            />
+                          ) : (
+                            <Navigate to="/" replace />
+                          )
+                        }
+                      />
+                      <Route
+                        path="/kabinet-joylashuv"
+                        element={
+                          !isAdminOrSuper ? (
+                            <EmployeeLocationPage
+                              user={currentUser}
+                              employees={employees}
                             />
                           ) : (
                             <Navigate to="/" replace />

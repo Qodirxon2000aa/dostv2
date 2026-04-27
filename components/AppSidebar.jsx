@@ -19,6 +19,7 @@ import {
   Bell,
   MessageCircle,
   Shield,
+  MapPin,
   CheckCircle2,
   BadgeDollarSign,
 } from 'lucide-react';
@@ -98,6 +99,7 @@ const AppSidebar = ({
                 onNavigate={closeOnNav}
                 badgeCount={supportChatUnreadTotal}
               />
+              <NavItem to="/locations" icon={<MapPin size={20} />} label="Joylashuv" onNavigate={closeOnNav} />
               <NavItem to="/logs" icon={<ScrollText size={20} />} label="Amallar" onNavigate={closeOnNav} />
               {isSuperAdmin && (
                 <NavItem to="/add-super-admin" icon={<Shield size={20} />} label="Super admin qo‘shish" onNavigate={closeOnNav} />
@@ -134,6 +136,7 @@ const AppSidebar = ({
                 onNavigate={closeOnNav}
               />
               <NavItem to="/kabinet-bonuslar" icon={<Gift size={20} />} label="Bonuslar" onNavigate={closeOnNav} />
+              <NavItem to="/kabinet-joylashuv" icon={<MapPin size={20} />} label="Joylashuv" onNavigate={closeOnNav} />
             </>
           )}
           <NavItem to="/settings" icon={<Settings size={20} />} label="Sozlamalar" onNavigate={closeOnNav} />
