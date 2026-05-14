@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
-import { MapPin, Clock3, Navigation } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { MapPin, Clock3, Navigation, LocateFixed } from 'lucide-react';
 import { resolveEmployeeRecord } from '../../utils/employeeSelf';
+import { api } from '../../utils/api';
+import { getCurrentPositionRobust } from '../../utils/geolocation';
 
 const EmployeeLocationPage = ({ user, employees = [] }) => {
   const me = useMemo(() => resolveEmployeeRecord(user, employees), [user, employees]);
   const loc = me?.currentLocation || null;
+  const [requesting, setRequesting] = useState(false);
+  const [hint, setHint] = useState('');
 
   const updatedAt = useMemo(() => {
     if (!loc?.updatedAt) return '—';
@@ -20,6 +24,44 @@ const EmployeeLocationPage = ({ user, employees = [] }) => {
       hour12: false,
     });
   }, [loc]);
+
+  const requestLocationNow = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setHint('Bu brauzer geolokatsiyani qo‘llamaydi.');
+      return;
+    }
+    setRequesting(true);
+    setHint('');
+    getCurrentPositionRobust()
+      .then(async (position) => {
+        try {
+          const acc = Number(position?.coords?.accuracy || 0);
+          await api.updateMyLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed,
+            heading: position.coords.heading,
+          });
+          setHint(
+            Number.isFinite(acc) && acc > 0
+              ? `Lokatsiya yuborildi (aniqlik: ~${Math.round(acc)} m).`
+              : 'Lokatsiya muvaffaqiyatli yuborildi.'
+          );
+        } catch (e) {
+          setHint(`Serverga yuborilmadi: ${e.message}`);
+        } finally {
+          setRequesting(false);
+        }
+      })
+      .catch((err) => {
+        if (err?.code === 1) setHint('Browserda location ruxsatini Allow qiling.');
+        else if (err?.code === 2) setHint('Lokatsiya aniqlanmadi. GPS yoqilganini tekshiring.');
+        else if (err?.code === 3) setHint('Lokatsiya olishda timeout bo‘ldi.');
+        else setHint('Lokatsiya olinmadi.');
+        setRequesting(false);
+      });
+  };
 
   return (
     <div className="space-y-4">
@@ -41,6 +83,16 @@ const EmployeeLocationPage = ({ user, employees = [] }) => {
           <Clock3 size={14} />
           Oxirgi yuborilgan vaqt: {updatedAt}
         </div>
+        <button
+          type="button"
+          onClick={requestLocationNow}
+          disabled={requesting}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs font-black uppercase disabled:opacity-50"
+        >
+          <LocateFixed size={14} />
+          {requesting ? 'Olinmoqda...' : 'Lokatsiyani hozir olish'}
+        </button>
+        {hint ? <p className="text-[11px] text-amber-300 font-bold">{hint}</p> : null}
         {loc?.lat != null && loc?.lng != null && (
           <>
             <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-2">

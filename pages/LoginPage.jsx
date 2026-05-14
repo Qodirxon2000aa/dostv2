@@ -210,7 +210,7 @@ const Login = ({ onLogin }) => {
             {/* Logo */}
             <div className="space-y-1 sm:space-y-2">
               <h1 className="text-4xl xs:text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none uppercase italic">
-                DOST
+                DOS'T
               </h1>
               <h1 className="text-4xl xs:text-5xl sm:text-7xl font-black text-yellow-400 tracking-tighter leading-none uppercase italic">
                 ELECTRIC

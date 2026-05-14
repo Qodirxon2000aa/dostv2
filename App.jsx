@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { Menu, ShieldCheck, Eye } from 'lucide-react';
 
 import { api } from './utils/api';
+import { getCurrentPositionRobust } from './utils/geolocation';
 import { useAdminSupportUnread } from './hooks/useAdminSupportUnread';
 import { AdminModeProvider } from './context/AdminModeContext';
 import AppSidebar from './components/AppSidebar';
@@ -72,6 +73,7 @@ const App = () => {
   const locationWatchIdRef = useRef(null);
   const locationPollRef = useRef(null);
   const lastLocationSentAtRef = useRef(0);
+  const locationDeniedRef = useRef(false);
 
   const [employees,  setEmployees]  = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -183,6 +185,7 @@ const App = () => {
       }
       locationWatchIdRef.current = null;
       locationPollRef.current = null;
+      locationDeniedRef.current = false;
       return undefined;
     }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -222,52 +225,32 @@ const App = () => {
       sendLocation(position.coords);
     };
 
-    const onError = () => {};
+    const onError = (err) => {
+      if (Number(err?.code || 0) === 1) {
+        // User/browser denied permission (or auto-blocked after ignored prompts)
+        locationDeniedRef.current = true;
+        stopTracking();
+      }
+    };
 
     const startTracking = () => {
-      if (cancelled) return;
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0,
-      });
+      if (cancelled || locationDeniedRef.current) return;
+      getCurrentPositionRobust()
+        .then(onSuccess)
+        .catch(onError);
       locationWatchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000,
+        enableHighAccuracy: false,
+        timeout: 25000,
+        maximumAge: 60000,
       });
       locationPollRef.current = setInterval(() => {
-        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 0,
-        });
+        getCurrentPositionRobust()
+          .then(onSuccess)
+          .catch(onError);
       }, 20000);
     };
 
-    if (navigator.permissions?.query) {
-      navigator.permissions
-        .query({ name: 'geolocation' })
-        .then((perm) => {
-          if (cancelled) return;
-          if (perm.state === 'denied') {
-            return;
-          }
-          startTracking();
-          perm.onchange = () => {
-            if (perm.state === 'denied') {
-              stopTracking();
-            } else {
-              startTracking();
-            }
-          };
-        })
-        .catch(() => {
-          startTracking();
-        });
-    } else {
-      startTracking();
-    }
+    startTracking();
 
     return () => {
       cancelled = true;
